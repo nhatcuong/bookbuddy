@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "bookbuddy-temp",
-    "slug": "bookbuddy-temp",
+    "name": "BookBuddy",
+    "slug": "bookbuddy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,6 +25,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-asset",
+      "expo-font"
+    ]
   }
 }
