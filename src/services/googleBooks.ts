@@ -17,11 +17,11 @@ export class GoogleBooksError extends Error {
 
 const GOOGLE_BOOKS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY;
 
-async function fetchWithRetry(url: string): Promise<Response> {
+async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   const res = await fetch(url);
-  if (res.status === 429) {
-    await new Promise(r => setTimeout(r, 1500));
-    return fetch(url);
+  if ((res.status === 429 || res.status === 503) && retries > 0) {
+    await new Promise(r => setTimeout(r, 2000));
+    return fetchWithRetry(url, retries - 1);
   }
   return res;
 }

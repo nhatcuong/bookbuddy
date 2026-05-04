@@ -14,6 +14,7 @@
     "expo": "~54.0.0",
     "expo-asset": "~12.0.12",
     "expo-av": "~16.0.8",
+    "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.21",
     "expo-font": "~14.0.11",
@@ -28,7 +29,7 @@
     "react-native-screens": "~4.16.0"
   },
   "devDependencies": {
-    "@types/react": "~19.0.0",
+    "@types/react": "^19.2.14",
     "typescript": "~5.3.3"
   },
   "private": true
