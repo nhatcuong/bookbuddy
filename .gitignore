@@ -40,3 +40,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local planning notes
+tasks.md
+open_questions.md
+build-log.md
