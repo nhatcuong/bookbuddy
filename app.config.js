@@ -30,6 +30,7 @@ export default {
       favicon: './assets/favicon.png',
     },
     plugins: [
+      '@sentry/react-native/expo',
       'expo-dev-client',
       'expo-sqlite',
       'expo-asset',
