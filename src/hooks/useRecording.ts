@@ -125,7 +125,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
       Sentry.addBreadcrumb({ category: 'recording', message: 'recording_failed', data: { errorType } });
       const message =
         err instanceof WhisperError || err instanceof ExtractError || err instanceof GoogleBooksError
-          ? (err as Error).message
+          ? err.message
           : 'Could not process recording.';
       Alert.alert('Error', message);
       setState('idle');
