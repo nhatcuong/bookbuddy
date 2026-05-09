@@ -7,7 +7,7 @@ import { transcribeAudio, WhisperError } from '../services/whisper';
 import { extractBookInfo, extractNoteOnly, ExtractError } from '../services/extract';
 import { fetchBookMetadata, GoogleBooksError } from '../services/googleBooks';
 import { findMatchingBook } from '../services/matchBook';
-import { insertBook, insertReadingSession, getBooks } from '../db/database';
+import { insertBook, insertReadingSession, getBooksByLastSession } from '../db/database';
 
 export type RecordingState = 'idle' | 'recording' | 'transcribing' | 'extracting' | 'done';
 
@@ -88,13 +88,13 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
         if (extracted.title === null) {
           // No book mentioned — fall back to the most recently recorded book
           Sentry.addBreadcrumb({ category: 'recording', message: 'no_book_identified' });
-          const lastBook = getBooks()[0] ?? null;
+          const lastBook = getBooksByLastSession()[0] ?? null;
           if (!lastBook) throw new Error('No book mentioned and no books recorded yet');
           bookId = lastBook.id;
           sessionId = insertReadingSession(bookId, extracted, text);
           console.log('[useRecording] no title, using last book', bookId, lastBook.title);
         } else {
-          const existingBooks = getBooks();
+          const existingBooks = getBooksByLastSession();
           const match = findMatchingBook(extracted.title, existingBooks);
           if (match) {
             console.log('[useRecording] matched existing book', match.id, match.title);

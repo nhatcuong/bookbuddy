@@ -84,7 +84,7 @@ export type SessionRow = {
   sessionDate: string;
 };
 
-export function getBooks(): BookRow[] {
+export function getBooksByLastSession(): BookRow[] {
   return db.getAllSync<BookRow>(`
     SELECT b.id, b.title, b.author,
            b.cover_url        AS coverUrl,

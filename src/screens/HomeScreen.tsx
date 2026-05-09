@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getBooks, BookRow } from '../db/database';
+import { getBooksByLastSession, BookRow } from '../db/database';
 import { importBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
 import { RootStackParamList } from '../navigation/types';
@@ -28,7 +28,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   function loadBooks() {
-    setBooks(getBooks());
+    setBooks(getBooksByLastSession());
   }
 
   useFocusEffect(useCallback(() => { loadBooks(); }, []));
