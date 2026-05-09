@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import { Directory, File, Paths } from 'expo-file-system';
+import * as Sentry from '@sentry/react-native';
 import { transcribeAudio, WhisperError } from '../services/whisper';
 import { extractBookInfo, extractNoteOnly, ExtractError } from '../services/extract';
 import { fetchBookMetadata, GoogleBooksError } from '../services/googleBooks';
@@ -86,6 +87,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
 
         if (extracted.title === null) {
           // No book mentioned — fall back to the most recently recorded book
+          Sentry.addBreadcrumb({ category: 'recording', message: 'no_book_identified' });
           const lastBook = getBooks()[0] ?? null;
           if (!lastBook) throw new Error('No book mentioned and no books recorded yet');
           bookId = lastBook.id;
@@ -98,20 +100,29 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
             console.log('[useRecording] matched existing book', match.id, match.title);
             bookId = match.id;
             sessionId = insertReadingSession(bookId, extracted, text);
+            Sentry.addBreadcrumb({ category: 'recording', message: 'book_matched' });
           } else {
             const metadata = await fetchBookMetadata(extracted.title, extracted.author);
             console.log('[useRecording] metadata:', JSON.stringify(metadata));
             bookId = insertBook(metadata, extracted);
             sessionId = insertReadingSession(bookId, extracted, text);
             console.log('[useRecording] saved new book', bookId, '/', extracted.title);
+            Sentry.addBreadcrumb({ category: 'recording', message: 'book_created' });
           }
         }
       }
 
       setState('done');
+      Sentry.addBreadcrumb({ category: 'recording', message: 'recording_completed' });
       onCompleteRef.current({ bookId, sessionId });
     } catch (err) {
       console.error('Failed to process recording:', err);
+      const errorType =
+        err instanceof WhisperError ? 'WhisperError'
+        : err instanceof ExtractError ? 'ExtractError'
+        : err instanceof GoogleBooksError ? 'GoogleBooksError'
+        : 'UnknownError';
+      Sentry.addBreadcrumb({ category: 'recording', message: 'recording_failed', data: { errorType } });
       const message =
         err instanceof WhisperError || err instanceof ExtractError || err instanceof GoogleBooksError
           ? err.message
