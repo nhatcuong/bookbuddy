@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import {
   getBookById,
   getSessionsByBookId,
-  getBooks,
+  getBooksByLastActivity,
   insertBook,
   insertReadingSessionRaw,
 } from '../db/database';
@@ -84,7 +84,7 @@ export async function importBook(): Promise<ImportResult> {
   }
 
   // Check if a matching book already exists
-  const existingBooks = getBooks();
+  const existingBooks = getBooksByLastActivity();
   const match = findMatchingBook(backup.book.title, existingBooks);
 
   let bookId: number;
