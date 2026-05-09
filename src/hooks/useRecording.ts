@@ -87,6 +87,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
 
         if (extracted.title === null) {
           // No book mentioned — fall back to the most recently recorded book
+          Sentry.addBreadcrumb({ category: 'recording', message: 'no_book_identified' });
           const lastBook = getBooks()[0] ?? null;
           if (!lastBook) throw new Error('No book mentioned and no books recorded yet');
           bookId = lastBook.id;
@@ -116,9 +117,15 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
       onCompleteRef.current({ bookId, sessionId });
     } catch (err) {
       console.error('Failed to process recording:', err);
+      const errorType =
+        err instanceof WhisperError ? 'WhisperError'
+        : err instanceof ExtractError ? 'ExtractError'
+        : err instanceof GoogleBooksError ? 'GoogleBooksError'
+        : 'UnknownError';
+      Sentry.addBreadcrumb({ category: 'recording', message: 'recording_failed', data: { errorType } });
       const message =
         err instanceof WhisperError || err instanceof ExtractError || err instanceof GoogleBooksError
-          ? err.message
+          ? (err as Error).message
           : 'Could not process recording.';
       Alert.alert('Error', message);
       setState('idle');
