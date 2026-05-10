@@ -29,13 +29,6 @@ export function initDatabase() {
       FOREIGN KEY (book_id) REFERENCES books(id)
     );
   `);
-
-  // Migration: add note_version column (no-op if already present)
-  try {
-    db.execSync(`ALTER TABLE reading_sessions ADD COLUMN note_version INTEGER NOT NULL DEFAULT 1`);
-  } catch {
-    // Column already exists — safe to ignore
-  }
 }
 
 // Always inserts a new book row. Matching against existing books is handled separately.
@@ -61,8 +54,8 @@ export function insertReadingSession(
 ): number {
   const blocks: NoteBlock[] = [{ type: 'thought', text: extracted.note }];
   const result = db.runSync(
-    `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note, note_version)
-     VALUES (?, ?, ?, ?, 2)`,
+    `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note)
+     VALUES (?, ?, ?, ?)`,
     bookId,
     extracted.chapter ?? null,
     transcript,
@@ -127,18 +120,15 @@ export function getBookById(id: number): BookRow | null {
 
 export function insertReadingSessionRaw(
   bookId: number,
-  session: { note: string | NoteBlock[]; chapter: string | null; rawTranscript: string | null; sessionDate: string }
+  session: { note: NoteBlock[]; chapter: string | null; rawTranscript: string | null; sessionDate: string }
 ): void {
-  const noteJson = Array.isArray(session.note)
-    ? JSON.stringify(session.note)
-    : JSON.stringify([{ type: 'thought', text: session.note }] satisfies NoteBlock[]);
   db.runSync(
-    `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note, note_version, session_date)
-     VALUES (?, ?, ?, ?, 2, ?)`,
+    `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note, session_date)
+     VALUES (?, ?, ?, ?, ?)`,
     bookId,
     session.chapter ?? null,
     session.rawTranscript ?? null,
-    noteJson,
+    JSON.stringify(session.note),
     session.sessionDate,
   );
 }
@@ -148,24 +138,17 @@ export function deleteBook(bookId: number): void {
   db.runSync(`DELETE FROM books WHERE id = ?`, bookId);
 }
 
-type RawSessionRow = Omit<SessionRow, 'note'> & { note: string; note_version: number };
-
 export function getSessionsByBookId(bookId: number): SessionRow[] {
-  const rows = db.getAllSync<RawSessionRow>(
+  const rows = db.getAllSync<Omit<SessionRow, 'note'> & { note: string }>(
     `SELECT id, book_id AS bookId, chapter,
             raw_transcript AS rawTranscript,
-            note, note_version, session_date AS sessionDate
+            note, session_date AS sessionDate
      FROM reading_sessions
      WHERE book_id = ?
      ORDER BY session_date DESC`,
     bookId
   );
-  return rows.map(row => ({
-    ...row,
-    note: row.note_version === 2
-      ? (JSON.parse(row.note) as NoteBlock[])
-      : [{ type: 'thought' as const, text: row.note }],
-  }));
+  return rows.map(row => ({ ...row, note: JSON.parse(row.note) as NoteBlock[] }));
 }
 
 export default db;

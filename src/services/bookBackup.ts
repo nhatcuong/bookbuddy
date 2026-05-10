@@ -11,7 +11,8 @@ import {
 import { findMatchingBook } from './matchBook';
 import { NoteBlock } from '../types/note';
 
-type BookBackupBase = {
+export type BookBackup = {
+  version: 2;
   book: {
     title: string;
     author: string | null;
@@ -21,22 +22,6 @@ type BookBackupBase = {
     description: string | null;
     pageCount: number | null;
   };
-};
-
-// v1: note was a flat string
-type BookBackupV1 = BookBackupBase & {
-  version: 1;
-  sessions: {
-    note: string;
-    chapter: string | null;
-    rawTranscript: string | null;
-    sessionDate: string;
-  }[];
-};
-
-// v2: note is a NoteBlock array
-type BookBackupV2 = BookBackupBase & {
-  version: 2;
   sessions: {
     note: NoteBlock[];
     chapter: string | null;
@@ -45,15 +30,13 @@ type BookBackupV2 = BookBackupBase & {
   }[];
 };
 
-export type BookBackup = BookBackupV1 | BookBackupV2;
-
 export async function exportBook(bookId: number): Promise<void> {
   const book = getBookById(bookId);
   if (!book) throw new Error('Book not found');
 
   const sessions = getSessionsByBookId(bookId);
 
-  const backup: BookBackupV2 = {
+  const backup: BookBackup = {
     version: 2,
     book: {
       title: book.title,
@@ -65,7 +48,7 @@ export async function exportBook(bookId: number): Promise<void> {
       pageCount: book.pageCount,
     },
     sessions: sessions.map(s => ({
-      note: s.note,      // already NoteBlock[] from getSessionsByBookId
+      note: s.note,
       chapter: s.chapter,
       rawTranscript: s.rawTranscript,
       sessionDate: s.sessionDate,
@@ -97,7 +80,7 @@ export async function importBook(): Promise<ImportResult> {
   const raw = await FileSystem.readAsStringAsync(result.assets[0].uri);
   const backup: BookBackup = JSON.parse(raw);
 
-  if ((backup.version !== 1 && backup.version !== 2) || !backup.book?.title || !Array.isArray(backup.sessions)) {
+  if (backup.version !== 2 || !backup.book?.title || !Array.isArray(backup.sessions)) {
     throw new Error('Invalid backup file');
   }
 
@@ -130,11 +113,7 @@ export async function importBook(): Promise<ImportResult> {
   }
 
   for (const session of backup.sessions) {
-    // Normalize v1 flat-string notes to NoteBlock[] so the DB always stores v2 format
-    const note: NoteBlock[] = backup.version === 1
-      ? [{ type: 'thought', text: session.note as string }]
-      : session.note as NoteBlock[];
-    insertReadingSessionRaw(bookId, { ...session, note });
+    insertReadingSessionRaw(bookId, session);
   }
 
   return { status, bookId, bookTitle: backup.book.title };
