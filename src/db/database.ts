@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { BookMetadata } from '../services/googleBooks';
 import { ExtractedNote } from '../services/extract';
+import { NoteBlock } from '../types/note';
 
 const db = SQLite.openDatabaseSync('bookbuddy.db');
 
@@ -28,6 +29,13 @@ export function initDatabase() {
       FOREIGN KEY (book_id) REFERENCES books(id)
     );
   `);
+
+  // Migration: add note_version column (no-op if already present)
+  try {
+    db.execSync(`ALTER TABLE reading_sessions ADD COLUMN note_version INTEGER NOT NULL DEFAULT 1`);
+  } catch {
+    // Column already exists — safe to ignore
+  }
 }
 
 // Always inserts a new book row. Matching against existing books is handled separately.
@@ -51,13 +59,14 @@ export function insertReadingSession(
   extracted: ExtractedNote,
   transcript: string,
 ): number {
+  const blocks: NoteBlock[] = [{ type: 'thought', text: extracted.note }];
   const result = db.runSync(
-    `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note)
-     VALUES (?, ?, ?, ?)`,
+    `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note, note_version)
+     VALUES (?, ?, ?, ?, 2)`,
     bookId,
     extracted.chapter ?? null,
     transcript,
-    extracted.note,
+    JSON.stringify(blocks),
   );
   return result.lastInsertRowId;
 }
@@ -80,7 +89,7 @@ export type SessionRow = {
   bookId: number;
   chapter: string | null;
   rawTranscript: string | null;
-  note: string;
+  note: NoteBlock[];
   sessionDate: string;
 };
 
@@ -118,15 +127,18 @@ export function getBookById(id: number): BookRow | null {
 
 export function insertReadingSessionRaw(
   bookId: number,
-  session: { note: string; chapter: string | null; rawTranscript: string | null; sessionDate: string }
+  session: { note: string | NoteBlock[]; chapter: string | null; rawTranscript: string | null; sessionDate: string }
 ): void {
+  const noteJson = Array.isArray(session.note)
+    ? JSON.stringify(session.note)
+    : JSON.stringify([{ type: 'thought', text: session.note }] satisfies NoteBlock[]);
   db.runSync(
-    `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note, session_date)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note, note_version, session_date)
+     VALUES (?, ?, ?, ?, 2, ?)`,
     bookId,
     session.chapter ?? null,
     session.rawTranscript ?? null,
-    session.note,
+    noteJson,
     session.sessionDate,
   );
 }
@@ -136,16 +148,24 @@ export function deleteBook(bookId: number): void {
   db.runSync(`DELETE FROM books WHERE id = ?`, bookId);
 }
 
+type RawSessionRow = Omit<SessionRow, 'note'> & { note: string; note_version: number };
+
 export function getSessionsByBookId(bookId: number): SessionRow[] {
-  return db.getAllSync<SessionRow>(
+  const rows = db.getAllSync<RawSessionRow>(
     `SELECT id, book_id AS bookId, chapter,
             raw_transcript AS rawTranscript,
-            note, session_date AS sessionDate
+            note, note_version, session_date AS sessionDate
      FROM reading_sessions
      WHERE book_id = ?
      ORDER BY session_date DESC`,
     bookId
   );
+  return rows.map(row => ({
+    ...row,
+    note: row.note_version === 2
+      ? (JSON.parse(row.note) as NoteBlock[])
+      : [{ type: 'thought' as const, text: row.note }],
+  }));
 }
 
 export default db;

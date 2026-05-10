@@ -17,6 +17,7 @@ import { getBookById, getSessionsByBookId, deleteBook, BookRow, SessionRow } fro
 import { exportBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
 import { RootStackParamList } from '../navigation/types';
+import { flattenBlocks } from '../types/note';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Book'>;
 
@@ -168,7 +169,7 @@ export default function BookScreen({ navigation, route }: Props) {
                   style={styles.sessionNote}
                   numberOfLines={isExpanded ? undefined : 2}
                 >
-                  {session.note}
+                  {flattenBlocks(session.note)}
                 </Text>
               </TouchableOpacity>
             );
