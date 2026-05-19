@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { BookMetadata } from '../services/googleBooks';
 import { ExtractedNote } from '../services/extract';
+import { NoteBlock } from '../types/note';
 
 const db = SQLite.openDatabaseSync('bookbuddy.db');
 
@@ -51,13 +52,14 @@ export function insertReadingSession(
   extracted: ExtractedNote,
   transcript: string,
 ): number {
+  const blocks: NoteBlock[] = [{ type: 'thought', text: extracted.note }];
   const result = db.runSync(
     `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note)
      VALUES (?, ?, ?, ?)`,
     bookId,
     extracted.chapter ?? null,
     transcript,
-    extracted.note,
+    JSON.stringify(blocks),
   );
   return result.lastInsertRowId;
 }
@@ -80,7 +82,7 @@ export type SessionRow = {
   bookId: number;
   chapter: string | null;
   rawTranscript: string | null;
-  note: string;
+  note: NoteBlock[];
   sessionDate: string;
 };
 
@@ -118,7 +120,7 @@ export function getBookById(id: number): BookRow | null {
 
 export function insertReadingSessionRaw(
   bookId: number,
-  session: { note: string; chapter: string | null; rawTranscript: string | null; sessionDate: string }
+  session: { note: NoteBlock[]; chapter: string | null; rawTranscript: string | null; sessionDate: string }
 ): void {
   db.runSync(
     `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note, session_date)
@@ -126,7 +128,7 @@ export function insertReadingSessionRaw(
     bookId,
     session.chapter ?? null,
     session.rawTranscript ?? null,
-    session.note,
+    JSON.stringify(session.note),
     session.sessionDate,
   );
 }
@@ -137,7 +139,7 @@ export function deleteBook(bookId: number): void {
 }
 
 export function getSessionsByBookId(bookId: number): SessionRow[] {
-  return db.getAllSync<SessionRow>(
+  const rows = db.getAllSync<Omit<SessionRow, 'note'> & { note: string }>(
     `SELECT id, book_id AS bookId, chapter,
             raw_transcript AS rawTranscript,
             note, session_date AS sessionDate
@@ -146,6 +148,7 @@ export function getSessionsByBookId(bookId: number): SessionRow[] {
      ORDER BY session_date DESC`,
     bookId
   );
+  return rows.map(row => ({ ...row, note: JSON.parse(row.note) as NoteBlock[] }));
 }
 
 export default db;

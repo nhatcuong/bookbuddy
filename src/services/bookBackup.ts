@@ -9,9 +9,10 @@ import {
   insertReadingSessionRaw,
 } from '../db/database';
 import { findMatchingBook } from './matchBook';
+import { NoteBlock } from '../types/note';
 
 export type BookBackup = {
-  version: 1;
+  version: 2;
   book: {
     title: string;
     author: string | null;
@@ -22,7 +23,7 @@ export type BookBackup = {
     pageCount: number | null;
   };
   sessions: {
-    note: string;
+    note: NoteBlock[];
     chapter: string | null;
     rawTranscript: string | null;
     sessionDate: string;
@@ -36,7 +37,7 @@ export async function exportBook(bookId: number): Promise<void> {
   const sessions = getSessionsByBookId(bookId);
 
   const backup: BookBackup = {
-    version: 1,
+    version: 2,
     book: {
       title: book.title,
       author: book.author,
@@ -79,7 +80,7 @@ export async function importBook(): Promise<ImportResult> {
   const raw = await FileSystem.readAsStringAsync(result.assets[0].uri);
   const backup: BookBackup = JSON.parse(raw);
 
-  if (backup.version !== 1 || !backup.book?.title || !Array.isArray(backup.sessions)) {
+  if (backup.version !== 2 || !backup.book?.title || !Array.isArray(backup.sessions)) {
     throw new Error('Invalid backup file');
   }
 
