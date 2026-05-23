@@ -74,9 +74,9 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
       let sessionId: number;
 
       if (pinnedBookId != null) {
-        const { chapter, note } = await extractNoteOnly(text);
+        const { chapter, blocks } = await extractNoteOnly(text);
         bookId = pinnedBookId;
-        sessionId = insertReadingSession(bookId, { title: '', author: null, chapter, note }, text);
+        sessionId = insertReadingSession(bookId, { title: '', author: null, chapter, blocks }, text);
         console.log('[db] saved session to pinned book', bookId);
       } else {
         const extracted = await extractBookInfo(text);

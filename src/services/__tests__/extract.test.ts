@@ -84,11 +84,11 @@ describe('extractNoteOnly', () => {
    * Verifies that extractNoteOnly correctly parses the tool_use block
    * and returns both fields as-is.
    */
-  it('returns chapter and note when Claude responds with both fields', async () => {
+  it('returns chapter and blocks when Claude responds with both fields', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(
       makeClaudeResponse({
         chapter: 'chapter 5',
-        note: 'I found the section on decision fatigue particularly compelling.',
+        blocks: [{ type: 'thought', text: 'I found the section on decision fatigue particularly compelling.', location: null }],
       })
     );
 
@@ -97,7 +97,7 @@ describe('extractNoteOnly', () => {
     );
 
     expect(result.chapter).toBe('chapter 5');
-    expect(result.note).toBe('I found the section on decision fatigue particularly compelling.');
+    expect(result.blocks).toEqual([{ type: 'thought', text: 'I found the section on decision fatigue particularly compelling.', location: null }]);
   });
 
   /**
@@ -110,14 +110,14 @@ describe('extractNoteOnly', () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(
       makeClaudeResponse({
         chapter: null,
-        note: 'The section on habits was insightful.',
+        blocks: [{ type: 'thought', text: 'The section on habits was insightful.', location: null }],
       })
     );
 
     const result = await extractNoteOnly('Read some of it today. The habits section was insightful.');
 
     expect(result.chapter).toBeNull();
-    expect(result.note).toBe('The section on habits was insightful.');
+    expect(result.blocks).toEqual([{ type: 'thought', text: 'The section on habits was insightful.', location: null }]);
   });
 
   /**
@@ -148,6 +148,30 @@ describe('extractNoteOnly', () => {
       extractNoteOnly('Some transcript text.')
     ).rejects.toThrow(ExtractError);
   });
+
+  /**
+   * Quote capture: when the user says "quote ... end quote", Claude should
+   * return a quote block. This is the core new behavior in T03.
+   */
+  it('returns a quote block when the transcript contains a quote signal', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      makeClaudeResponse({
+        chapter: null,
+        blocks: [
+          { type: 'thought', text: 'There was a great line in this chapter.', location: null },
+          { type: 'quote', text: 'The value of a man resides in what he gives.', location: 'page 42' },
+        ],
+      })
+    );
+
+    const result = await extractNoteOnly(
+      'There was a great line in this chapter. Quote: The value of a man resides in what he gives. End quote. Page 42.'
+    );
+
+    expect(result.blocks).toHaveLength(2);
+    expect(result.blocks[0]).toEqual({ type: 'thought', text: 'There was a great line in this chapter.', location: null });
+    expect(result.blocks[1]).toEqual({ type: 'quote', text: 'The value of a man resides in what he gives.', location: 'page 42' });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -159,13 +183,13 @@ describe('extractBookInfo', () => {
    * Happy path: user clearly states the book title and author.
    * All four fields (title, author, chapter, note) should come back populated.
    */
-  it('returns title, author, chapter, and note when the book is clearly mentioned', async () => {
+  it('returns title, author, chapter, and blocks when the book is clearly mentioned', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(
       makeClaudeResponse({
         title: 'High Output Management',
         author: 'Andy Grove',
         chapter: 'chapter 3',
-        note: 'I keep thinking about how leverage applies to my own work.',
+        blocks: [{ type: 'thought', text: 'I keep thinking about how leverage applies to my own work.', location: null }],
       })
     );
 
@@ -176,7 +200,7 @@ describe('extractBookInfo', () => {
     expect(result.title).toBe('High Output Management');
     expect(result.author).toBe('Andy Grove');
     expect(result.chapter).toBe('chapter 3');
-    expect(result.note).toBe('I keep thinking about how leverage applies to my own work.');
+    expect(result.blocks).toEqual([{ type: 'thought', text: 'I keep thinking about how leverage applies to my own work.', location: null }]);
   });
 
   /**
@@ -194,7 +218,7 @@ describe('extractBookInfo', () => {
         title: null,
         author: null,
         chapter: null,
-        note: "I keep coming back to this idea about compounding small habits.",
+        blocks: [{ type: 'thought', text: "I keep coming back to this idea about compounding small habits.", location: null }],
       })
     );
 
@@ -204,8 +228,8 @@ describe('extractBookInfo', () => {
 
     expect(result.title).toBeNull();
     expect(result.author).toBeNull();
-    // Note should still be extracted even without a book reference
-    expect(result.note).toBe("I keep coming back to this idea about compounding small habits.");
+    // blocks should still be extracted even without a book reference
+    expect(result.blocks).toEqual([{ type: 'thought', text: "I keep coming back to this idea about compounding small habits.", location: null }]);
   });
 
   /**
@@ -218,7 +242,7 @@ describe('extractBookInfo', () => {
         title: 'Thinking, Fast and Slow',
         author: null,
         chapter: null,
-        note: 'The dual process theory really changed how I think about decisions.',
+        blocks: [{ type: 'thought', text: 'The dual process theory really changed how I think about decisions.', location: null }],
       })
     );
 
