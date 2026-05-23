@@ -17,6 +17,7 @@ import { getBooksByLastSession, BookRow } from '../db/database';
 import { importBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
 import { RootStackParamList } from '../navigation/types';
+import UnifiedPrompt from '../components/UnifiedPrompt';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -33,7 +34,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => { loadBooks(); }, []));
 
-  const { state, durationMs, start, stop, cleanup } = useRecording(({ bookId, sessionId }) => {
+  const { state, durationMs, start, stop, cleanup, retryPrompt, provideRetryTranscript } = useRecording(({ bookId, sessionId }) => {
     loadBooks();
     navigation.navigate('Book', { bookId, highlightSessionId: sessionId });
   });
@@ -166,6 +167,15 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Retry prompt — shown when no book was identified and library is empty */}
+      {retryPrompt && (
+        <UnifiedPrompt
+          message={retryPrompt.message}
+          onTranscript={provideRetryTranscript}
+          onDismiss={() => provideRetryTranscript(null)}
+        />
+      )}
 
       {/* Menu — high zIndex container ensures it's above all content */}
       {menuOpen && (

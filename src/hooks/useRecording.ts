@@ -22,14 +22,37 @@ export type RecordingResult = {
   sessionId: number;
 };
 
+export type RetryPrompt = {
+  message: string;
+  // secondaryLabel deferred until T09 (photo fallback)
+};
+
 export function useRecording(onComplete: (result: RecordingResult) => void, pinnedBookId?: number) {
   const [state, setState] = useState<RecordingState>('idle');
+  const [retryPrompt, setRetryPrompt] = useState<RetryPrompt | null>(null);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
+  // Resolves the Promise inside stop() when the user provides a retry transcript.
+  // null means the user dismissed (note discarded).
+  const retryResolveRef = useRef<((text: string | null) => void) | null>(null);
+
   const durationMs = recorderState.durationMillis ?? 0;
+
+  function provideRetryTranscript(text: string | null) {
+    retryResolveRef.current?.(text);
+    retryResolveRef.current = null;
+    setRetryPrompt(null);
+  }
+
+  function awaitRetry(message: string): Promise<string | null> {
+    return new Promise(resolve => {
+      setRetryPrompt({ message });
+      retryResolveRef.current = resolve;
+    });
+  }
 
   async function start() {
     try {
@@ -85,10 +108,48 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
         if (extracted.title === null) {
           Sentry.addBreadcrumb({ category: 'recording', message: 'no_book_identified' });
           const lastBook = getBooksByLastSession()[0] ?? null;
-          if (!lastBook) throw new Error('No book mentioned and no books recorded yet');
-          bookId = lastBook.id;
-          sessionId = insertReadingSession(bookId, extracted, text);
-          console.log('[useRecording] no title, using last book', bookId, lastBook.title);
+
+          if (lastBook) {
+            bookId = lastBook.id;
+            sessionId = insertReadingSession(bookId, extracted, text);
+            console.log('[useRecording] no title, using last book', bookId, lastBook.title);
+          } else {
+            // No books in library — ask up to 2 times before discarding
+            let resolved = false;
+            const retryMessages = [
+              "Sorry, what book was that?",
+              "I still couldn't identify it. Try again?",
+            ];
+
+            for (const message of retryMessages) {
+              const retryTranscript = await awaitRetry(message);
+              if (!retryTranscript) break;
+
+              setState('extracting');
+              const retryExtracted = await extractBookInfo(retryTranscript);
+              if (retryExtracted.title !== null) {
+                const existing = getBooksByLastSession();
+                const match = findMatchingBook(retryExtracted.title, existing);
+                if (match) {
+                  bookId = match.id;
+                  Sentry.addBreadcrumb({ category: 'recording', message: 'book_matched' });
+                } else {
+                  const metadata = await fetchBookMetadata(retryExtracted.title, retryExtracted.author);
+                  bookId = insertBook(metadata, retryExtracted);
+                  Sentry.addBreadcrumb({ category: 'recording', message: 'book_created' });
+                }
+                sessionId = insertReadingSession(bookId!, retryExtracted, retryTranscript);
+                resolved = true;
+                break;
+              }
+            }
+
+            if (!resolved) {
+              console.log('[useRecording] all retries failed, discarding note');
+              setState('idle');
+              return;
+            }
+          }
         } else {
           const existingBooks = getBooksByLastSession();
           const match = findMatchingBook(extracted.title, existingBooks);
@@ -110,7 +171,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
 
       setState('done');
       Sentry.addBreadcrumb({ category: 'recording', message: 'recording_completed' });
-      onCompleteRef.current({ bookId, sessionId });
+      onCompleteRef.current({ bookId: bookId!, sessionId: sessionId! });
     } catch (err) {
       console.error('Failed to process recording:', err);
       const errorType =
@@ -132,5 +193,5 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
     if (recorderState.isRecording) recorder.stop().catch(() => {});
   }
 
-  return { state, durationMs, start, stop, cleanup };
+  return { state, durationMs, start, stop, cleanup, retryPrompt, provideRetryTranscript };
 }

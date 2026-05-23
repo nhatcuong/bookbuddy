@@ -1,5 +1,28 @@
 # Build Log
 
+## Session 7 — 2026-05-23
+
+### What we did
+- **T07: UnifiedPrompt component** — new `src/components/UnifiedPrompt.tsx`
+  - Full-screen modal overlay with message, tap-to-listen mic button, optional secondary action + cancel
+  - Handles its own recording + transcription (expo-audio + Whisper); calls `onTranscript(text)` when done
+- **T08: No-book retry flow** — replaces the Alert crash in `useRecording`
+  - When null title + no books: hook suspends via Promise (`awaitRetry`), exposes `retryPrompt` state and `provideRetryTranscript` to the screen
+  - HomeScreen renders UnifiedPrompt when `retryPrompt !== null`; dismissing calls `provideRetryTranscript(null)` → note silently discarded
+  - Up to 2 spoken attempts ("Sorry, what book was that?" → "I still couldn't identify it. Try again?") before discarding
+  - "Take a photo instead" deferred to T09
+- **T06: "Wrong book?" button** — in BookScreen expanded session view
+  - `wrongBookSessionId` state + UnifiedPrompt rendered when set
+  - On transcript: `extractBookInfo` → find/create correct book → `reassignSession` → navigate to new book (or reload if same)
+  - New DB function `reassignSession(sessionId, newBookId)`
+- Tests: updated 2 tests to match T08 behavior (no Alert → retryPrompt pattern); added retryPrompt assertion
+
+### Next session
+- T09: PhotoFallback — camera + barcode scan + Claude Vision for book identification
+- Wire "Take a photo instead" secondary into T08 retry flow
+
+---
+
 ## Session 6 — 2026-05-19
 
 ### What we did
