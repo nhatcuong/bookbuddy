@@ -17,7 +17,7 @@ import { getBookById, getSessionsByBookId, deleteBook, BookRow, SessionRow } fro
 import { exportBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
 import { RootStackParamList } from '../navigation/types';
-import { flattenBlocks } from '../types/note';
+import NoteBlocksRenderer from '../components/NoteBlocksRenderer';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Book'>;
 
@@ -165,12 +165,7 @@ export default function BookScreen({ navigation, route }: Props) {
                   <Text style={styles.sessionDate}>{formatDate(session.sessionDate)}</Text>
                   {session.chapter && <Text style={styles.sessionChapter}>{session.chapter}</Text>}
                 </View>
-                <Text
-                  style={styles.sessionNote}
-                  numberOfLines={isExpanded ? undefined : 2}
-                >
-                  {flattenBlocks(session.note)}
-                </Text>
+                <NoteBlocksRenderer blocks={session.note} collapsed={!isExpanded} />
               </TouchableOpacity>
             );
           })
@@ -364,11 +359,6 @@ const styles = StyleSheet.create({
   sessionChapter: {
     fontSize: 12,
     color: '#AAA',
-  },
-  sessionNote: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
