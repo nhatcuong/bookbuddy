@@ -1,10 +1,12 @@
+import { NoteBlock } from '../types/note';
+
 const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
 
 export type ExtractedNote = {
   title: string | null;
   author: string | null;
   chapter: string | null;
-  note: string;
+  blocks: NoteBlock[];
 };
 
 export class ExtractError extends Error {
@@ -14,7 +16,7 @@ export class ExtractError extends Error {
   }
 }
 
-export async function extractNoteOnly(transcript: string): Promise<{ chapter: string | null; note: string }> {
+export async function extractNoteOnly(transcript: string): Promise<{ chapter: string | null; blocks: NoteBlock[] }> {
   if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'your_anthropic_api_key_here') {
     throw new ExtractError('Anthropic API key not set in .env');
   }
@@ -40,12 +42,27 @@ export async function extractNoteOnly(transcript: string): Promise<{ chapter: st
                 type: ['string', 'null'],
                 description: 'Chapter or section reference if mentioned (e.g. "chapter 3", "part 2"), otherwise null.',
               },
-              note: {
-                type: 'string',
-                description: 'A clean first-person summary of the thoughts and observations. Use "I", not "the reader".',
+              blocks: {
+                type: 'array',
+                description:
+                  'Ordered list of note blocks. Split the transcript into thought and quote blocks. ' +
+                  'A quote block is triggered by phrases like "quote ... end quote" or "open quote ... close quote". ' +
+                  'Everything else is a thought block. When in doubt, use thought.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['thought', 'quote'] },
+                    text: { type: 'string', description: 'The content of the block.' },
+                    location: {
+                      type: ['string', 'null'],
+                      description: 'Page, location, or percentage if mentioned near the quote (e.g. "page 25", "loc 4521"). null for thought blocks.',
+                    },
+                  },
+                  required: ['type', 'text', 'location'],
+                },
               },
             },
-            required: ['chapter', 'note'],
+            required: ['chapter', 'blocks'],
           },
         },
       ],
@@ -69,7 +86,7 @@ export async function extractNoteOnly(transcript: string): Promise<{ chapter: st
     throw new ExtractError('No structured output from Claude');
   }
 
-  return toolUse.input as { chapter: string | null; note: string };
+  return toolUse.input as { chapter: string | null; blocks: NoteBlock[] };
 }
 
 export async function extractBookInfo(transcript: string): Promise<ExtractedNote> {
@@ -106,12 +123,27 @@ export async function extractBookInfo(transcript: string): Promise<ExtractedNote
                 type: ['string', 'null'],
                 description: 'Chapter or section reference if mentioned (e.g. "chapter 3", "part 2"), otherwise null.',
               },
-              note: {
-                type: 'string',
-                description: 'A clean first-person summary of the thoughts and observations from the transcript. Use "I", not "the reader".',
+              blocks: {
+                type: 'array',
+                description:
+                  'Ordered list of note blocks. Split the transcript into thought and quote blocks. ' +
+                  'A quote block is triggered by phrases like "quote ... end quote" or "open quote ... close quote". ' +
+                  'Everything else is a thought block. When in doubt, use thought.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['thought', 'quote'] },
+                    text: { type: 'string', description: 'The content of the block.' },
+                    location: {
+                      type: ['string', 'null'],
+                      description: 'Page, location, or percentage if mentioned near the quote (e.g. "page 25", "loc 4521"). null for thought blocks.',
+                    },
+                  },
+                  required: ['type', 'text', 'location'],
+                },
               },
             },
-            required: ['title', 'author', 'chapter', 'note'],
+            required: ['title', 'author', 'chapter', 'blocks'],
           },
         },
       ],
@@ -137,3 +169,4 @@ export async function extractBookInfo(transcript: string): Promise<ExtractedNote
 
   return toolUse.input as ExtractedNote;
 }
+

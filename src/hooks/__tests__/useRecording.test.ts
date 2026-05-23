@@ -6,16 +6,16 @@
  *
  *   Case A — null title + books exist:
  *     The note should be silently attached to the most recently recorded book
- *     (getBooks()[0]). onComplete is called with that book's ID.
+ *     (getBooksByLastSession()[0]). onComplete is called with that book's ID.
  *
  *   Case B — null title + NO books in library:
  *     There is no book to fall back to. The hook must NOT silently discard
  *     the note — it must surface an error to the user via Alert.
  *
- * Strategy: mock every I/O layer (Audio, FileSystem, Whisper, Claude, Google
- * Books, SQLite) so tests run without any native modules or network. Each
- * mock is configured to return the minimal valid data needed to reach the
- * branching logic under test.
+ * Strategy: mock every I/O layer (expo-audio, FileSystem, Whisper, Claude,
+ * Google Books, SQLite) so tests run without any native modules or network.
+ * Each mock is configured to return the minimal valid data needed to reach
+ * the branching logic under test.
  *
  * Note on act() / async: state updates inside the hook must be wrapped in
  * act() so React flushes them synchronously. We use waitFor from
@@ -32,25 +32,25 @@ import { useRecording } from '../useRecording';
 // ---------------------------------------------------------------------------
 
 /**
- * expo-av: mock Audio permission, mode, and recording lifecycle.
- * The recording object returned by createAsync is the minimal shape that
- * useRecording's stop() function needs: stopAndUnloadAsync + getURI.
+ * expo-audio: mock the recorder hook and permission/mode utilities.
+ * useAudioRecorder returns a recorder object with the minimal API surface
+ * useRecording calls: prepareToRecordAsync, record, stop, uri.
  */
-jest.mock('expo-av', () => ({
-  Audio: {
-    requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+jest.mock('expo-audio', () => {
+  const mockRecorder = {
+    prepareToRecordAsync: jest.fn().mockResolvedValue(undefined),
+    record: jest.fn(),
+    stop: jest.fn().mockResolvedValue(undefined),
+    uri: 'file://tmp/recording.m4a',
+  };
+  return {
+    useAudioRecorder: jest.fn().mockReturnValue(mockRecorder),
+    useAudioRecorderState: jest.fn().mockReturnValue({ durationMillis: 0, isRecording: false }),
+    RecordingPresets: { HIGH_QUALITY: {} },
     setAudioModeAsync: jest.fn().mockResolvedValue(undefined),
-    Recording: {
-      createAsync: jest.fn().mockResolvedValue({
-        recording: {
-          stopAndUnloadAsync: jest.fn().mockResolvedValue(undefined),
-          getURI: jest.fn().mockReturnValue('file://tmp/recording.m4a'),
-        },
-      }),
-    },
-    RecordingOptionsPresets: { HIGH_QUALITY: {} },
-  },
-}));
+    requestRecordingPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+  };
+});
 
 /**
  * expo-file-system: mock Directory and File classes.
@@ -88,17 +88,18 @@ jest.mock('../../services/whisper', () => ({
 /**
  * extract: default mock returns null title (the scenario we're testing).
  * Individual tests override this via mockResolvedValueOnce when needed.
+ * blocks replaces the old flat note string as of T03.
  */
 jest.mock('../../services/extract', () => ({
   extractBookInfo: jest.fn().mockResolvedValue({
     title: null,
     author: null,
     chapter: null,
-    note: 'A generic reading note.',
+    blocks: [{ type: 'thought', text: 'A generic reading note.', location: null }],
   }),
   extractNoteOnly: jest.fn().mockResolvedValue({
     chapter: null,
-    note: 'A note from the pinned book flow.',
+    blocks: [{ type: 'thought', text: 'A note from the pinned book flow.', location: null }],
   }),
   ExtractError: class ExtractError extends Error {
     constructor(msg: string) { super(msg); this.name = 'ExtractError'; }
@@ -135,12 +136,12 @@ jest.mock('@sentry/react-native', () => ({
 
 /**
  * database: the key mock for these tests.
- * - getBooks() is overridden per-test to control whether books exist.
+ * - getBooksByLastSession() is overridden per-test to control whether books exist.
  * - insertReadingSession() returns a fake session ID.
  * - insertBook() is mocked but should not be called in the null-title path.
  */
 jest.mock('../../db/database', () => ({
-  getBooks: jest.fn(),
+  getBooksByLastSession: jest.fn(),
   insertBook: jest.fn().mockReturnValue(99),
   insertReadingSession: jest.fn().mockReturnValue(42),
 }));
@@ -149,7 +150,7 @@ jest.mock('../../db/database', () => ({
 // Import mocked modules so we can configure them per-test
 // ---------------------------------------------------------------------------
 
-import { getBooks, insertReadingSession } from '../../db/database';
+import { getBooksByLastSession, insertReadingSession } from '../../db/database';
 import { extractBookInfo } from '../../services/extract';
 
 // ---------------------------------------------------------------------------
@@ -188,9 +189,9 @@ describe('useRecording — null title fallback', () => {
    *
    * Scenario: user says "Just a quick thought about what I read today."
    * Claude returns title: null because no book was mentioned.
-   * The library has at least one book (getBooks() returns a non-empty array).
+   * The library has at least one book (getBooksByLastSession() returns a non-empty array).
    *
-   * Expected behaviour: the note is silently attached to getBooks()[0] — the
+   * Expected behaviour: the note is silently attached to getBooksByLastSession()[0] — the
    * most recently recorded book — and onComplete is called with that book's ID.
    * No Alert is shown; the user just sees their note appear on the right book.
    */
@@ -208,7 +209,7 @@ describe('useRecording — null title fallback', () => {
       createdAt: '2026-04-01T10:00:00Z',
       lastSessionAt: '2026-04-10T09:00:00Z',
     };
-    (getBooks as jest.Mock).mockReturnValue([existingBook]);
+    (getBooksByLastSession as jest.Mock).mockReturnValue([existingBook]);
 
     // extractBookInfo already defaults to null title (see module mock above)
 
@@ -251,7 +252,7 @@ describe('useRecording — null title fallback', () => {
    */
   it('shows an Alert and does not call onComplete when title is null and no books exist', async () => {
     // Arrange: completely empty library
-    (getBooks as jest.Mock).mockReturnValue([]);
+    (getBooksByLastSession as jest.Mock).mockReturnValue([]);
 
     // extractBookInfo already defaults to null title
 
@@ -281,7 +282,7 @@ describe('useRecording — null title fallback', () => {
       title: 'Deep Work',
       author: 'Cal Newport',
       chapter: null,
-      note: 'The idea of deep work resonates with how I want to structure my days.',
+      blocks: [{ type: 'thought', text: 'The idea of deep work resonates with how I want to structure my days.', location: null }],
     });
 
     // Library has a matching book — findMatchingBook will return it
@@ -297,7 +298,7 @@ describe('useRecording — null title fallback', () => {
       createdAt: '2026-03-15T10:00:00Z',
       lastSessionAt: '2026-04-01T09:00:00Z',
     };
-    (getBooks as jest.Mock).mockReturnValue([existingBook]);
+    (getBooksByLastSession as jest.Mock).mockReturnValue([existingBook]);
 
     // Make findMatchingBook return the existing book for this title
     const { findMatchingBook } = require('../../services/matchBook');
@@ -310,7 +311,7 @@ describe('useRecording — null title fallback', () => {
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
 
-    // Should have matched the existing book, not fallen back to getBooks()[0]
+    // Should have matched the existing book, not fallen back to getBooksByLastSession()[0]
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({ bookId: existingBook.id })
     );

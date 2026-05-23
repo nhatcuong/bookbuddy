@@ -1,5 +1,118 @@
 # Build Log
 
+## Session 6 — 2026-05-19
+
+### What we did
+- **T03: Quote extraction in Claude prompt** — `extract.ts` now returns `NoteBlock[]` instead of a flat string
+  - `ExtractedNote.note: string` → `ExtractedNote.blocks: NoteBlock[]`
+  - `extractNoteOnly` return type: `{ chapter, note }` → `{ chapter, blocks }`
+  - Both Claude tool schemas updated: `note` field replaced by `blocks: NoteBlock[]` array
+  - Prompt instructs Claude to detect "quote ... end quote" / "open quote ... close quote" → `{ type: 'quote' }` blocks; everything else → `{ type: 'thought' }` block
+  - `database.ts` `insertReadingSession`: removed the manual `[{ type: 'thought', text: extracted.note }]` wrap — now uses `extracted.blocks` directly
+  - `useRecording.ts`: destructures `blocks` instead of `note` for both pinned and unpinned paths
+  - Tests: updated mocks + assertions; added new quote block test case (5 → 9 in extract.test.ts)
+  - Also fixed `useRecording.test.ts` pre-existing breakages from SDK 55 migration: `expo-av` → `expo-audio` mock, `getBooks` → `getBooksByLastSession`, `note` → `blocks` in all mocks
+  - All 12 tests pass
+
+### Next session
+- T04: `NoteBlocksRenderer` component — replace `flattenBlocks()` in `BookScreen.tsx` with a proper per-block renderer
+
+---
+
+## Session 5 — 2026-05-10 / 2026-05-18
+
+### What we did
+- **T02: Note blocks data model** (PR #5)
+  - New `src/types/note.ts`: `NoteBlock` union type (`thought | quote`) + `flattenBlocks()` helper
+  - `database.ts`: notes now stored as JSON `NoteBlock[]` in the existing `note` column; `getSessionsByBookId` deserializes on read
+  - `bookBackup.ts`: export/import format bumped to `version: 2` with `NoteBlock[]` notes
+  - `BookScreen.tsx`: uses `flattenBlocks()` until a proper block renderer lands in T04
+  - Dropped backward compat after review — fresh app, no migration needed
+- **SDK 55 upgrade** (PR #6) — forced by Xcode auto-updating to 26.5
+  - Expo SDK 54 native builds are broken on Xcode 26 (fmt library `consteval` errors, SwiftUICore linker errors)
+  - Bumped all `expo-*` to `~55.0.0`, `react-native` to `0.83.6`, `@sentry/react-native` to `^8.x`
+  - Replaced `expo-av` with `expo-audio`: recording API migrated to `useAudioRecorder` hook
+  - Added `expo-audio` to config plugins (provides `NSMicrophoneUsageDescription`) — missing this caused permission call to hang silently
+  - Enabled New Architecture (`experiments.newArchEnabled: true`) — required by `expo-audio`
+  - Added `SENTRY_DISABLE_AUTO_UPLOAD=true` to avoid sentry-cli org error on every build
+
+### Learnings / gotchas
+
+**Xcode auto-updates break native builds**
+Xcode updated itself to 26.5 (iOS 26 SDK). Expo SDK 54 pods were not compatible — multiple native compile failures. Solution: upgrade Expo SDK, not downgrade Xcode.
+
+**expo-audio plugin is required for microphone permissions**
+When migrating from `expo-av` to `expo-audio`, the `expo-audio` config plugin must be added to `app.config.js`. Without it, `NSMicrophoneUsageDescription` is missing from Info.plist and `requestRecordingPermissionsAsync()` hangs silently on iOS — no dialog, no error.
+
+**New Architecture required for expo-audio**
+`expo-audio` uses `useReleasingSharedObject` from expo-modules-core which requires New Architecture. Disabling it (`newArchEnabled: false`) caused the record button to freeze.
+
+### Next session
+- Merge PRs #5 and #6
+- T03: Update Claude extraction to return `NoteBlock[]` instead of flat string
+- T04: `NoteBlocksRenderer` component
+
+---
+
+## Session 4 — 2026-05-09
+
+### What we did
+- Reviewed `tasks.md` and began implementing tasks as stacked PRs
+- Installed `gh` CLI via Homebrew for automated PR creation
+- **T00: Sentry** (PR #1, merged)
+  - `Sentry.init()` in `App.tsx`, enabled only in non-dev builds
+  - Added breadcrumbs in `useRecording`: `no_book_identified`, `book_matched`, `book_created`, `recording_completed`, `recording_failed` (with error type)
+- **T01: Unit tests** (PR #2, merged)
+  - `src/services/__tests__/extract.test.ts` — 6 tests covering `extractBookInfo` and `extractNoteOnly`, mocking `global.fetch`
+  - `src/hooks/__tests__/useRecording.test.ts` — 3 tests for last-book fallback, pinned book, and new book flows
+  - `jest.setup.ts` for env var stubs
+- **flows.md** (PR #3, merged) — authoritative reference for all supported user flows
+- **Rename `getBooks` → `getBooksByLastSession`** (PR #4, merged)
+  - Went through `getBooksByLastActivity` first (user flagged as too vague)
+  - Final name `getBooksByLastSession` — matches `reading_sessions` table and communicates sort order precisely
+  - Discussed Philosophy of Software Design: names should communicate behavior, not just identity
+
+### Learnings / gotchas
+
+**Stacked PRs and rebase conflicts**
+T01 merged before T00 into main, causing a rebase conflict in `useRecording.ts`. Resolved manually: kept both Sentry breadcrumbs and the renamed function.
+
+**GitHub shows all commits from stacked branches**
+When viewing a stacked PR on GitHub, all commits from lower branches appear in the diff. This is cosmetic — only the diff from the base branch matters.
+
+### Next session
+- Implement T02: note blocks data model
+
+---
+
+## Session 3 — 2026-05-04
+
+### What we did
+- Pushed all code to GitHub (nhatcuong/bookbuddy), set up SSH key
+- Set up dev/release build split: `app.config.js` with `APP_VARIANT` env — `com.nnc.bookbuddy.dev` (dev client + Metro) and `com.nnc.bookbuddy` (Release, standalone)
+- Installed `expo-dev-client`, resolved `@types/react` peer dep conflict
+- Fixed Google Books 503 — retry logic (3x, 2s delay) for 503 + 429
+- Installed app on phone via Xcode — Release build is standalone, dev build connects to Metro
+- Brainstorming session — designed and saved to memory:
+  - Photo fallback for book identification (barcode scan + Claude Vision, one button)
+  - Unified prompt interface for "Sorry, what book was that?" retry flow (max 3 attempts, honest drop)
+  - Edit note — text box + optional mic dictation, no AI parsing
+  - Multi-candidate picker with "None of these → take a photo"
+  - Record vs Find — two voice modes, mode toggle above FAB
+  - Find — SQLite FTS first, RAG deferred
+  - Quote capture — "quote... end quote" → NoteBlock type, page/location metadata
+  - Recap/export — MD file + share sheet + pre-filled AI prompt
+  - Claude Design — plan to mockup key screens after logic done, UX must make Record/Find unmistakable
+  - Sentry — crash reporting + usage counters (T00)
+- Wrote `tasks.md` (21 tasks, T00–T20, 7 groups) and `open_questions.md` (10 open questions)
+
+### Next session
+- Review `tasks.md`, adjust scope/sequencing
+- Implement each task as a separate stacked PR
+- Session after: review PRs, merge when happy
+
+---
+
 ## Session 2 — 2026-03-18
 
 ### What we did

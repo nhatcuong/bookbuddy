@@ -32,9 +32,13 @@ export default {
     plugins: [
       '@sentry/react-native/expo',
       'expo-dev-client',
+      'expo-audio',
       'expo-sqlite',
       'expo-asset',
       'expo-font',
     ],
+    experiments: {
+      newArchEnabled: true,
+    },
   },
 };

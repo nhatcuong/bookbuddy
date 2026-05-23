@@ -52,14 +52,13 @@ export function insertReadingSession(
   extracted: ExtractedNote,
   transcript: string,
 ): number {
-  const blocks: NoteBlock[] = [{ type: 'thought', text: extracted.note }];
   const result = db.runSync(
     `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note)
      VALUES (?, ?, ?, ?)`,
     bookId,
     extracted.chapter ?? null,
     transcript,
-    JSON.stringify(blocks),
+    JSON.stringify(extracted.blocks),
   );
   return result.lastInsertRowId;
 }

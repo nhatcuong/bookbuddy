@@ -1,6 +1,12 @@
 import { useState, useRef } from 'react';
 import { Alert } from 'react-native';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder,
+  useAudioRecorderState,
+  RecordingPresets,
+  setAudioModeAsync,
+  requestRecordingPermissionsAsync,
+} from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sentry from '@sentry/react-native';
 import { transcribeAudio, WhisperError } from '../services/whisper';
@@ -18,49 +24,40 @@ export type RecordingResult = {
 
 export function useRecording(onComplete: (result: RecordingResult) => void, pinnedBookId?: number) {
   const [state, setState] = useState<RecordingState>('idle');
-  const [durationMs, setDurationMs] = useState(0);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Keep a stable ref to onComplete so stop() always calls the latest version
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(recorder);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
-  function clearTimer() {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }
+  const durationMs = recorderState.durationMillis ?? 0;
 
   async function start() {
     try {
-      const { granted } = await Audio.requestPermissionsAsync();
+      console.log('[rec] requesting permissions');
+      const { granted } = await requestRecordingPermissionsAsync();
+      console.log('[rec] permissions:', granted);
       if (!granted) {
         Alert.alert('Microphone permission required', 'Please enable it in Settings.');
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = recording;
+      console.log('[rec] setAudioMode');
+      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+      console.log('[rec] prepareToRecordAsync');
+      await recorder.prepareToRecordAsync();
+      console.log('[rec] record()');
+      recorder.record();
       setState('recording');
-      setDurationMs(0);
-      intervalRef.current = setInterval(() => setDurationMs(d => d + 1000), 1000);
+      console.log('[rec] done');
     } catch (err) {
-      console.error('Failed to start recording:', err);
+      console.error('[rec] error:', err);
       Alert.alert('Error', 'Could not start recording.');
     }
   }
 
   async function stop() {
-    const rec = recordingRef.current;
-    if (!rec) return;
     try {
-      clearTimer();
-      await rec.stopAndUnloadAsync();
-      const tempUri = rec.getURI();
-      recordingRef.current = null;
+      await recorder.stop();
+      const tempUri = recorder.uri;
       if (!tempUri) throw new Error('No recording URI');
 
       const filename = `recording_${Date.now()}.m4a`;
@@ -77,16 +74,15 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
       let sessionId: number;
 
       if (pinnedBookId != null) {
-        const { chapter, note } = await extractNoteOnly(text);
+        const { chapter, blocks } = await extractNoteOnly(text);
         bookId = pinnedBookId;
-        sessionId = insertReadingSession(bookId, { title: '', author: null, chapter, note }, text);
+        sessionId = insertReadingSession(bookId, { title: '', author: null, chapter, blocks }, text);
         console.log('[db] saved session to pinned book', bookId);
       } else {
         const extracted = await extractBookInfo(text);
         console.log('[useRecording] extracted:', JSON.stringify(extracted));
 
         if (extracted.title === null) {
-          // No book mentioned — fall back to the most recently recorded book
           Sentry.addBreadcrumb({ category: 'recording', message: 'no_book_identified' });
           const lastBook = getBooksByLastSession()[0] ?? null;
           if (!lastBook) throw new Error('No book mentioned and no books recorded yet');
@@ -133,8 +129,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
   }
 
   function cleanup() {
-    clearTimer();
-    recordingRef.current?.stopAndUnloadAsync();
+    if (recorderState.isRecording) recorder.stop().catch(() => {});
   }
 
   return { state, durationMs, start, stop, cleanup };
