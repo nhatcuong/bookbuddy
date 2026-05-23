@@ -132,6 +132,10 @@ export function insertReadingSessionRaw(
   );
 }
 
+export function reassignSession(sessionId: number, newBookId: number): void {
+  db.runSync('UPDATE reading_sessions SET book_id = ? WHERE id = ?', newBookId, sessionId);
+}
+
 export function deleteBook(bookId: number): void {
   db.runSync(`DELETE FROM reading_sessions WHERE book_id = ?`, bookId);
   db.runSync(`DELETE FROM books WHERE id = ?`, bookId);

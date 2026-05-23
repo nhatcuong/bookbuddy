@@ -13,11 +13,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getBookById, getSessionsByBookId, deleteBook, BookRow, SessionRow } from '../db/database';
+import { getBookById, getSessionsByBookId, getBooksByLastSession, deleteBook, reassignSession, insertBook, BookRow, SessionRow } from '../db/database';
 import { exportBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
+import { extractBookInfo } from '../services/extract';
+import { fetchBookMetadata } from '../services/googleBooks';
+import { findMatchingBook } from '../services/matchBook';
 import { RootStackParamList } from '../navigation/types';
 import NoteBlocksRenderer from '../components/NoteBlocksRenderer';
+import UnifiedPrompt from '../components/UnifiedPrompt';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Book'>;
 
@@ -31,6 +35,7 @@ export default function BookScreen({ navigation, route }: Props) {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(highlightSessionId ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [wrongBookSessionId, setWrongBookSessionId] = useState<number | null>(null);
 
   function load() {
     setBook(getBookById(bookId));
@@ -101,6 +106,33 @@ export default function BookScreen({ navigation, route }: Props) {
     );
   }
 
+  async function handleWrongBook(sessionId: number, transcript: string) {
+    try {
+      const extracted = await extractBookInfo(transcript);
+      if (!extracted.title) {
+        Alert.alert("Couldn't identify", "We couldn't identify the book. Try again.");
+        return;
+      }
+      const existing = getBooksByLastSession();
+      const match = findMatchingBook(extracted.title, existing);
+      let newBookId: number;
+      if (match) {
+        newBookId = match.id;
+      } else {
+        const metadata = await fetchBookMetadata(extracted.title, extracted.author);
+        newBookId = insertBook(metadata, extracted);
+      }
+      reassignSession(sessionId, newBookId);
+      if (newBookId === bookId) {
+        load();
+      } else {
+        navigation.replace('Book', { bookId: newBookId, highlightSessionId: sessionId });
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Could not move note.');
+    }
+  }
+
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
@@ -166,6 +198,14 @@ export default function BookScreen({ navigation, route }: Props) {
                   {session.chapter && <Text style={styles.sessionChapter}>{session.chapter}</Text>}
                 </View>
                 <NoteBlocksRenderer blocks={session.note} collapsed={!isExpanded} />
+                {isExpanded && (
+                  <TouchableOpacity
+                    onPress={(e) => { e.stopPropagation(); setWrongBookSessionId(session.id); }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.wrongBook}>Wrong book?</Text>
+                  </TouchableOpacity>
+                )}
               </TouchableOpacity>
             );
           })
@@ -198,6 +238,19 @@ export default function BookScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Wrong book correction */}
+      {wrongBookSessionId !== null && (
+        <UnifiedPrompt
+          message="Which book was this for?"
+          onTranscript={(transcript) => {
+            const sid = wrongBookSessionId;
+            setWrongBookSessionId(null);
+            handleWrongBook(sid, transcript);
+          }}
+          onDismiss={() => setWrongBookSessionId(null)}
+        />
+      )}
 
       {/* Menu — high zIndex container ensures it's above all content */}
       {menuOpen && (
@@ -359,6 +412,11 @@ const styles = StyleSheet.create({
   sessionChapter: {
     fontSize: 12,
     color: '#AAA',
+  },
+  wrongBook: {
+    fontSize: 13,
+    color: '#AAA',
+    marginTop: 4,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

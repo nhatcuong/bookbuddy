@@ -243,29 +243,33 @@ describe('useRecording — null title fallback', () => {
    * Scenario: user opens the app for the first time and speaks a note that
    * doesn't name a book. There are no books to fall back to.
    *
-   * Expected behaviour: the hook cannot save the note (no book to attach it
-   * to), so it must surface an error to the user via Alert. onComplete must
-   * NOT be called — we must not create phantom data or a bookless session.
-   *
-   * This test guards against the silent data-loss bug where the note is
-   * dropped without any feedback to the user.
+   * Expected behaviour (T08): instead of an Alert, the hook suspends and
+   * exposes retryPrompt so the screen can show UnifiedPrompt. If the user
+   * dismisses (provideRetryTranscript(null)), the note is silently discarded
+   * and onComplete is NOT called.
    */
-  it('shows an Alert and does not call onComplete when title is null and no books exist', async () => {
-    // Arrange: completely empty library
+  it('shows retryPrompt and discards note when user dismisses (null title, no books)', async () => {
     (getBooksByLastSession as jest.Mock).mockReturnValue([]);
-
-    // extractBookInfo already defaults to null title
 
     const onComplete = jest.fn();
     const { result } = renderHook(() => useRecording(onComplete));
 
-    await recordAndStop(result);
+    await act(async () => { await result.current.start(); });
 
-    // The user must be told something went wrong — silent discard is not acceptable
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledTimes(1));
+    // stop() will suspend internally at awaitRetry — don't await it
+    void result.current.stop();
 
-    // onComplete must NOT have been called — no data should have been saved
+    // Hook is suspended waiting for retry input — retryPrompt should appear
+    await waitFor(() => expect(result.current.retryPrompt).not.toBeNull());
+    expect(result.current.retryPrompt?.message).toBe('Sorry, what book was that?');
+
+    // User dismisses — provideRetryTranscript(null) breaks the retry loop
+    await act(async () => { result.current.provideRetryTranscript(null); });
+
+    // Hook should settle back to idle with no note saved
+    await waitFor(() => expect(result.current.state).toBe('idle'));
     expect(onComplete).not.toHaveBeenCalled();
+    expect(Alert.alert).not.toHaveBeenCalled();
   });
 
   /**
@@ -307,7 +311,8 @@ describe('useRecording — null title fallback', () => {
     const onComplete = jest.fn();
     const { result } = renderHook(() => useRecording(onComplete));
 
-    await recordAndStop(result);
+    await act(async () => { await result.current.start(); });
+    await act(async () => { await result.current.stop(); });
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
 
