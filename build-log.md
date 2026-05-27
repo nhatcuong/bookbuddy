@@ -1,8 +1,39 @@
 # Build Log
 
+## Session 8 — 2026-05-27
+
+### What we did
+- **Refactor `useRecording.ts`** — separated abstraction layers per Ousterhout
+  - Extracted module-level helpers: `saveAudioFile`, `findOrCreateBook`, `recordingErrorMessage`
+  - Extracted named inner functions: `processTranscript` (4 cases as flat early-returns), `resolveWithRetry` (retry loop isolated)
+  - `start()` reduced to 10 lines; `stop()` reads as 5 named steps
+  - `resolved` flag variable and `!` assertions eliminated; console.log scaffolding removed
+- **Fix Google Books cover selection** (PR #11)
+  - Old logic picked purely by title similarity → non-deterministic when editions scored equally, could return old/obscure covers
+  - New composite score: title similarity (primary) + thumbnail bonus (+0.15) + ratings count bonus (up to +0.1)
+  - Popular canonical editions consistently preferred over old ones
+  - `maxResults` bumped 5 → 8 for more candidates; extracted `pickBest()` + `itemScore()`
+  - Motivated by "Thinking in Systems" repeatedly returning an old edition cover
+
+### Decisions made
+- Dropped T09 barcode scan — useless for Kindle (majority of use), friction for physical books
+- Revised T09 to cover photo → Claude Vision only (simpler, works for Kindle screens)
+- Dropped T11 multi-candidate picker — the real cover problem was edition selection, not ambiguous titles; fixed directly in `googleBooks.ts`
+- Revised plan to MVP: fix covers → T12/T13 edit note → T19/T20 Claude Design → ship to self
+
+### Next session
+- T12: `updateSession` DB function
+- T13: Edit note screen
+
+---
+
 ## Session 7 — 2026-05-23
 
 ### What we did
+- **T04/T05: NoteBlocksRenderer + BookScreen wiring**
+  - New `src/components/NoteBlocksRenderer.tsx`: thought blocks as plain text, quote blocks with red left-border accent + italic text + location caption
+  - `collapsed` prop for list rows renders a flat 2-line preview
+  - `BookScreen.tsx`: replaced `flattenBlocks()` with `NoteBlocksRenderer`; confirmed quote layout working on device
 - **T07: UnifiedPrompt component** — new `src/components/UnifiedPrompt.tsx`
   - Full-screen modal overlay with message, tap-to-listen mic button, optional secondary action + cancel
   - Handles its own recording + transcription (expo-audio + Whisper); calls `onTranscript(text)` when done
@@ -18,8 +49,8 @@
 - Tests: updated 2 tests to match T08 behavior (no Alert → retryPrompt pattern); added retryPrompt assertion
 
 ### Next session
-- T09: PhotoFallback — camera + barcode scan + Claude Vision for book identification
-- Wire "Take a photo instead" secondary into T08 retry flow
+- T09: PhotoFallback — camera + barcode scan + Claude Vision for book identification; wire "Take a photo instead" into T08
+- Or T12/T13: edit note screen (independent, lower risk)
 
 ---
 
