@@ -64,12 +64,28 @@ function parseItem(item: any, fallbackTitle: string): BookMetadata {
 }
 
 async function queryBooks(query: string, key: string): Promise<any[]> {
-  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5&printType=books${key}`;
-  console.log('[googleBooks] query:', query);
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&printType=books${key}`;
   const response = await fetchWithRetry(url);
   if (!response.ok) throw new GoogleBooksError(`Google Books API error: ${response.status}`);
   const json = await response.json();
   return json.items ?? [];
+}
+
+// Score an item for selection. Title similarity is primary; editions with a
+// proper thumbnail and more ratings are preferred as tiebreakers — popular
+// canonical editions tend to have better cover art than old/obscure ones.
+function itemScore(item: any, queryTitle: string): number {
+  const info = item.volumeInfo ?? {};
+  const title = titleSimilarity(queryTitle, info.title ?? '');
+  const hasThumbnail = info.imageLinks?.thumbnail ? 0.15 : 0;
+  const popularity = Math.min((info.ratingsCount ?? 0) / 500, 0.1);
+  return title + hasThumbnail + popularity;
+}
+
+function pickBest(items: any[], queryTitle: string): any {
+  return items.reduce((best, item) =>
+    itemScore(item, queryTitle) > itemScore(best, queryTitle) ? item : best
+  , items[0]);
 }
 
 export async function fetchBookMetadata(
@@ -91,17 +107,5 @@ export async function fetchBookMetadata(
 
   if (items.length === 0) return null;
 
-  // Pick the result whose title best matches what the user said
-  let best = items[0];
-  let bestScore = titleSimilarity(title, items[0].volumeInfo?.title ?? '');
-  for (const item of items.slice(1)) {
-    const score = titleSimilarity(title, item.volumeInfo?.title ?? '');
-    if (score > bestScore) {
-      bestScore = score;
-      best = item;
-    }
-  }
-
-  console.log('[googleBooks] best match:', best.volumeInfo?.title, 'score:', bestScore);
-  return parseItem(best, title);
+  return parseItem(pickBest(items, title), title);
 }
