@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getBookById, getSessionsByBookId, getBooksByLastSession, deleteBook, reassignSession, insertBook, BookRow, SessionRow } from '../db/database';
+import { getBookById, getSessionsByBookId, getBooksByLastSession, deleteBook, deleteSession, reassignSession, insertBook, BookRow, SessionRow } from '../db/database';
 import { exportBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
 import { extractBookInfo } from '../services/extract';
@@ -36,6 +36,7 @@ export default function BookScreen({ navigation, route }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(highlightSessionId ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [wrongBookSessionId, setWrongBookSessionId] = useState<number | null>(null);
+  const rerecordRef = useRef<number | null>(null);
 
   function load() {
     setBook(getBookById(bookId));
@@ -45,6 +46,10 @@ export default function BookScreen({ navigation, route }: Props) {
   useFocusEffect(useCallback(() => { load(); }, [bookId]));
 
   const { state, durationMs, start, stop, cleanup } = useRecording(({ sessionId }) => {
+    if (rerecordRef.current !== null) {
+      deleteSession(rerecordRef.current);
+      rerecordRef.current = null;
+    }
     load();
     setExpandedId(sessionId);
   }, bookId);
@@ -133,6 +138,23 @@ export default function BookScreen({ navigation, route }: Props) {
     }
   }
 
+  function handleRerecord(sessionId: number) {
+    rerecordRef.current = sessionId;
+    setExpandedId(null);
+    start();
+  }
+
+  function handleDeleteSession(sessionId: number) {
+    Alert.alert(
+      'Delete note',
+      'Delete this note? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => { deleteSession(sessionId); load(); } },
+      ]
+    );
+  }
+
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
@@ -199,12 +221,28 @@ export default function BookScreen({ navigation, route }: Props) {
                 </View>
                 <NoteBlocksRenderer blocks={session.note} collapsed={!isExpanded} />
                 {isExpanded && (
-                  <TouchableOpacity
-                    onPress={(e) => { e.stopPropagation(); setWrongBookSessionId(session.id); }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text style={styles.wrongBook}>Wrong book?</Text>
-                  </TouchableOpacity>
+                  <View style={styles.sessionActions}>
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation(); setWrongBookSessionId(session.id); }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={styles.sessionAction}>Wrong book?</Text>
+                    </TouchableOpacity>
+                    <View style={styles.sessionActionsRight}>
+                      <TouchableOpacity
+                        onPress={(e) => { e.stopPropagation(); handleRerecord(session.id); }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Text style={styles.sessionAction}>Re-record</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Text style={[styles.sessionAction, styles.sessionActionDestructive]}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 )}
               </TouchableOpacity>
             );
@@ -413,10 +451,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#AAA',
   },
-  wrongBook: {
+  sessionActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  sessionActionsRight: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  sessionAction: {
     fontSize: 13,
     color: '#AAA',
-    marginTop: 4,
+  },
+  sessionActionDestructive: {
+    color: RED,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
