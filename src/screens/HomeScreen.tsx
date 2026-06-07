@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Animated,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,11 +16,11 @@ import { importBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
 import { RootStackParamList } from '../navigation/types';
 import UnifiedPrompt from '../components/UnifiedPrompt';
+import Fab from '../components/Fab';
+import RecordingOverlay from '../components/RecordingOverlay';
+import { NAVY, ACCENT, MUTED, FAINT, PAPER, SURFACE, HAIRLINE, CARD_SHADOW } from '../tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
-
-const RED = '#E53935';
-const DARK_RED = '#B71C1C';
 
 export default function HomeScreen({ navigation }: Props) {
   const [books, setBooks] = useState<BookRow[]>([]);
@@ -41,32 +39,9 @@ export default function HomeScreen({ navigation }: Props) {
 
   useEffect(() => () => cleanup(), []);
 
-  const isRecording = state === 'recording';
+  const isRecording  = state === 'recording';
   const isProcessing = state === 'transcribing' || state === 'extracting';
-  const showOverlay = isRecording || isProcessing;
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    if (isRecording) {
-      pulseLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.25, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ])
-      );
-      pulseLoop.current.start();
-    } else {
-      pulseLoop.current?.stop();
-      pulseAnim.setValue(1);
-    }
-  }, [isRecording]);
-
-  function formatDuration(ms: number) {
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
-  }
+  const showOverlay  = isRecording || isProcessing;
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -92,27 +67,24 @@ export default function HomeScreen({ navigation }: Props) {
     }
   }
 
-  const overlayLabel = {
-    recording: formatDuration(durationMs),
-    transcribing: 'Transcribing…',
-    extracting: 'Identifying book…',
-    done: '',
-    idle: '',
-  }[state];
-
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.header}>BookBuddy</Text>
-        <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.menuButton}>
+        <Text style={styles.wordmark}>
+          <Text style={styles.wordmarkSerif}>Book</Text>
+          <Text style={styles.wordmarkScript}>buddy</Text>
+        </Text>
+        <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.menuButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.menuDots}>⋯</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Book list */}
       {books.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>No books yet</Text>
-          <Text style={styles.emptySubtitle}>Record your first reading note</Text>
+          <Text style={styles.emptySubtitle}>Tap below to record your first note</Text>
         </View>
       ) : (
         <FlatList
@@ -123,9 +95,8 @@ export default function HomeScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[styles.bookCard, index === 0 && styles.bookCardActive]}
               onPress={() => navigation.navigate('Book', { bookId: item.id })}
-              activeOpacity={0.7}
+              activeOpacity={0.75}
             >
-              {index === 0 && <View style={styles.activeIndicator} />}
               {item.coverUrl ? (
                 <Image source={{ uri: item.coverUrl }} style={styles.cover} resizeMode="cover" />
               ) : (
@@ -135,7 +106,10 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
                 {item.author && <Text style={styles.bookAuthor}>{item.author}</Text>}
                 {item.lastSessionAt && (
-                  <Text style={styles.bookDate}>Last note {formatDate(item.lastSessionAt)}</Text>
+                  <View style={styles.dateRow}>
+                    {index === 0 && <View style={styles.activeDot} />}
+                    <Text style={styles.bookDate}>Last note {formatDate(item.lastSessionAt)}</Text>
+                  </View>
                 )}
               </View>
             </TouchableOpacity>
@@ -143,32 +117,24 @@ export default function HomeScreen({ navigation }: Props) {
         />
       )}
 
-      {/* Overlay during recording / processing */}
+      {/* Recording overlay */}
       {showOverlay && (
-        <View style={styles.overlay}>
-          <Text style={styles.overlayLabel}>{overlayLabel}</Text>
-        </View>
+        <RecordingOverlay
+          state={state as 'recording' | 'transcribing' | 'extracting'}
+          durationMs={durationMs}
+          hasBooks={books.length > 0}
+        />
       )}
 
       {/* FAB */}
-      <View style={styles.fab}>
-        {isRecording && (
-          <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
-        )}
-        {isProcessing ? (
-          <ActivityIndicator size="large" color={RED} />
-        ) : (
-          <TouchableOpacity
-            style={[styles.recordButton, isRecording && styles.recordButtonActive]}
-            onPress={isRecording ? stop : start}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.recordIcon, isRecording && styles.stopIcon]} />
-          </TouchableOpacity>
-        )}
+      <View style={styles.fabContainer}>
+        <Fab
+          fabState={isRecording ? 'recording' : isProcessing ? 'processing' : 'idle'}
+          onPress={isRecording ? stop : start}
+        />
       </View>
 
-      {/* Retry prompt — shown when no book was identified and library is empty */}
+      {/* Retry prompt */}
       {retryPrompt && (
         <UnifiedPrompt
           message={retryPrompt.message}
@@ -177,7 +143,7 @@ export default function HomeScreen({ navigation }: Props) {
         />
       )}
 
-      {/* Menu — high zIndex container ensures it's above all content */}
+      {/* Menu */}
       {menuOpen && (
         <View style={[StyleSheet.absoluteFillObject, { zIndex: 999 }]}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setMenuOpen(false)} />
@@ -195,176 +161,139 @@ export default function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: PAPER,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
   },
-  header: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#1A1A1A',
+  wordmark: {
+    letterSpacing: -0.4,
+  },
+  wordmarkSerif: {
+    fontFamily: 'Newsreader_600SemiBold',
+    fontSize: 28,
+    color: NAVY,
+  },
+  wordmarkScript: {
+    fontFamily: 'Newsreader_500Medium_Italic',
+    fontSize: 28,
+    color: ACCENT,
   },
   menuButton: {
     padding: 4,
   },
   menuDots: {
     fontSize: 22,
-    color: '#1A1A1A',
+    color: NAVY,
     letterSpacing: 1,
   },
   menuCard: {
     position: 'absolute',
     top: 56,
     right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: SURFACE,
+    borderRadius: 14,
     paddingVertical: 4,
     minWidth: 160,
-    shadowColor: '#000',
+    shadowColor: NAVY,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
     elevation: 8,
   },
   menuItem: {
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 16,
   },
   menuItemText: {
     fontSize: 15,
-    color: '#1A1A1A',
+    color: NAVY,
   },
   list: {
     paddingHorizontal: 16,
-    paddingBottom: 120,
-    gap: 10,
+    paddingBottom: 140,
+    gap: 11,
   },
   bookCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: SURFACE,
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    ...CARD_SHADOW,
   },
   bookCardActive: {
     borderWidth: 1,
-    borderColor: RED + '40',
-  },
-  activeIndicator: {
-    width: 4,
-    backgroundColor: RED,
-    borderRadius: 2,
+    borderColor: ACCENT + 'AA',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
   },
   cover: {
-    width: 56,
-    height: 80,
-    backgroundColor: '#E0E0E0',
+    width: 52,
+    height: 76,
   },
   coverPlaceholder: {
-    width: 56,
-    height: 80,
-    backgroundColor: '#E0E0E0',
+    width: 52,
+    height: 76,
+    backgroundColor: '#C8BFAF',
   },
   bookInfo: {
     flex: 1,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
     gap: 3,
     justifyContent: 'center',
   },
   bookTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1A1A',
+    fontFamily: 'Newsreader_600SemiBold',
+    fontSize: 17,
+    color: NAVY,
+    lineHeight: 21,
+    letterSpacing: -0.2,
   },
   bookAuthor: {
     fontSize: 13,
-    color: '#666',
+    color: MUTED,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 3,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: ACCENT,
   },
   bookDate: {
     fontSize: 12,
-    color: '#AAA',
-    marginTop: 4,
+    color: FAINT,
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 80,
+    paddingBottom: 100,
     gap: 8,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
+    fontFamily: 'Newsreader_500Medium',
+    fontSize: 20,
+    color: NAVY,
   },
   emptySubtitle: {
-    fontSize: 15,
-    color: '#888',
+    fontSize: 14,
+    color: MUTED,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(250,250,250,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  overlayLabel: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: RED,
-    fontVariant: ['tabular-nums'],
-  },
-  fab: {
+  fabContainer: {
     position: 'absolute',
-    bottom: 36,
+    bottom: 30,
     alignSelf: 'center',
-    width: 72,
-    height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: RED,
-    opacity: 0.2,
-  },
-  recordButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: RED,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: RED,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  recordButtonActive: {
-    backgroundColor: DARK_RED,
-  },
-  recordIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#fff',
-  },
-  stopIcon: {
-    borderRadius: 4,
-    width: 20,
-    height: 20,
   },
 });

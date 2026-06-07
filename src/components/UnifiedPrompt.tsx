@@ -1,13 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  StyleSheet,
-  ActivityIndicator,
-  Animated,
-} from 'react-native';
+import { View, Text, Modal, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
 import {
   useAudioRecorder,
   useAudioRecorderState,
@@ -17,9 +10,8 @@ import {
 } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import { transcribeAudio } from '../services/whisper';
-
-const RED = '#E53935';
-const DARK_RED = '#B71C1C';
+import Fab, { FabState } from './Fab';
+import { NAVY, MUTED, SURFACE } from '../tokens';
 
 type MicState = 'idle' | 'recording' | 'transcribing';
 
@@ -36,34 +28,13 @@ export default function UnifiedPrompt({ message, onTranscript, onDismiss, second
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
-
-  const isRecording = micState === 'recording';
-
-  useEffect(() => {
-    if (isRecording) {
-      pulseLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.3, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ])
-      );
-      pulseLoop.current.start();
-    } else {
-      pulseLoop.current?.stop();
-      pulseAnim.setValue(1);
-    }
-  }, [isRecording]);
-
-  // Stop recorder on unmount if still recording
   useEffect(() => {
     return () => {
       if (recorderState.isRecording) recorder.stop().catch(() => {});
     };
   }, []);
 
-  async function handleMicPress() {
+  async function handleFabPress() {
     if (micState === 'recording') {
       await recorder.stop();
       const tempUri = recorder.uri;
@@ -93,48 +64,37 @@ export default function UnifiedPrompt({ message, onTranscript, onDismiss, second
     }
   }
 
+  const fabState: FabState =
+    micState === 'recording'   ? 'recording'  :
+    micState === 'transcribing'? 'processing' : 'idle';
+
   const hintText =
-    micState === 'idle' ? 'Tap to speak' :
-    micState === 'recording' ? 'Tap to stop' :
-    'Transcribing…';
+    micState === 'idle'        ? 'Tap to speak'             :
+    micState === 'recording'   ? 'Listening… tap when done' :
+                                 'Got it — thank you';
 
   return (
     <Modal transparent animationType="fade" statusBarTranslucent>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <Text style={styles.message}>{message}</Text>
+      <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject}>
+        <View style={styles.backdrop}>
+          <View style={styles.navyTint} />
+          <View style={styles.card}>
+            <Text style={styles.message}>{message}</Text>
+            <Text style={styles.sub}>No rush. Just say the title and I'll move the note for you.</Text>
 
-          <View style={styles.micWrapper}>
-            {isRecording && (
-              <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
-            )}
-            {micState === 'transcribing' ? (
-              <ActivityIndicator size="large" color={RED} />
-            ) : (
-              <TouchableOpacity
-                style={[styles.micButton, isRecording && styles.micButtonActive]}
-                onPress={handleMicPress}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.micIcon, isRecording && styles.stopIcon]} />
-              </TouchableOpacity>
-            )}
-          </View>
+            <Fab fabState={fabState} onPress={handleFabPress} />
 
-          <Text style={styles.hint}>{hintText}</Text>
+            <Text style={styles.hint}>{hintText}</Text>
 
-          <View style={styles.actions}>
-            {secondaryLabel && onSecondary && (
-              <TouchableOpacity onPress={onSecondary} style={styles.actionButton}>
-                <Text style={styles.actionText}>{secondaryLabel}</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity onPress={onDismiss} style={styles.actionButton}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+            <View style={styles.actions}>
+              {secondaryLabel && onSecondary && (
+                <Text style={styles.actionLink} onPress={onSecondary}>{secondaryLabel}</Text>
+              )}
+              <Text style={styles.dismiss} onPress={onDismiss}>Never mind</Text>
+            </View>
           </View>
         </View>
-      </View>
+      </BlurView>
     </Modal>
   );
 }
@@ -142,86 +102,57 @@ export default function UnifiedPrompt({ message, onTranscript, onDismiss, second
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
+  },
+  navyTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(27,42,74,0.30)',
   },
   card: {
     width: '100%',
-    backgroundColor: '#FAFAFA',
-    borderRadius: 24,
-    padding: 32,
+    backgroundColor: SURFACE,
+    borderRadius: 26,
+    paddingVertical: 36,
+    paddingHorizontal: 28,
     alignItems: 'center',
-    gap: 20,
+    gap: 16,
   },
   message: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1A1A1A',
+    fontFamily: 'Newsreader_600SemiBold',
+    fontSize: 23,
+    color: NAVY,
     textAlign: 'center',
     lineHeight: 30,
   },
-  micWrapper: {
-    width: 96,
-    height: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: RED,
-    opacity: 0.2,
-  },
-  micButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: RED,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: RED,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  micButtonActive: {
-    backgroundColor: DARK_RED,
-  },
-  micIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#fff',
-  },
-  stopIcon: {
-    borderRadius: 4,
-    width: 22,
-    height: 22,
+  sub: {
+    fontSize: 14,
+    color: MUTED,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   hint: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: MUTED,
+    textAlign: 'center',
   },
   actions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 20,
+    marginTop: 4,
   },
-  actionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  actionText: {
-    fontSize: 15,
-    color: RED,
+  actionLink: {
+    fontSize: 14,
+    color: NAVY,
     fontWeight: '500',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
   },
-  cancelText: {
-    fontSize: 15,
-    color: '#888',
+  dismiss: {
+    fontSize: 14,
+    color: MUTED,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
   },
 });

@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Animated,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,11 +20,11 @@ import { findMatchingBook } from '../services/matchBook';
 import { RootStackParamList } from '../navigation/types';
 import NoteBlocksRenderer from '../components/NoteBlocksRenderer';
 import UnifiedPrompt from '../components/UnifiedPrompt';
+import Fab from '../components/Fab';
+import RecordingOverlay from '../components/RecordingOverlay';
+import { NAVY, ACCENT, MUTED, FAINT, DESTRUCTIVE, PAPER, SURFACE, HAIRLINE, CARD_SHADOW } from '../tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Book'>;
-
-const RED = '#E53935';
-const DARK_RED = '#B71C1C';
 
 export default function BookScreen({ navigation, route }: Props) {
   const { bookId, highlightSessionId } = route.params;
@@ -56,32 +54,9 @@ export default function BookScreen({ navigation, route }: Props) {
 
   useEffect(() => () => cleanup(), []);
 
-  const isRecording = state === 'recording';
+  const isRecording  = state === 'recording';
   const isProcessing = state === 'transcribing' || state === 'extracting';
-  const showOverlay = isRecording || isProcessing;
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    if (isRecording) {
-      pulseLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.25, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ])
-      );
-      pulseLoop.current.start();
-    } else {
-      pulseLoop.current?.stop();
-      pulseAnim.setValue(1);
-    }
-  }, [isRecording]);
-
-  function formatDuration(ms: number) {
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
-  }
+  const showOverlay  = isRecording || isProcessing;
 
   async function handleExport() {
     setMenuOpen(false);
@@ -102,10 +77,7 @@ export default function BookScreen({ navigation, route }: Props) {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            deleteBook(bookId);
-            navigation.goBack();
-          },
+          onPress: () => { deleteBook(bookId); navigation.goBack(); },
         },
       ]
     );
@@ -161,22 +133,14 @@ export default function BookScreen({ navigation, route }: Props) {
     });
   }
 
-  const overlayLabel = {
-    recording: formatDuration(durationMs),
-    transcribing: 'Transcribing…',
-    extracting: 'Processing note…',
-    done: '',
-    idle: '',
-  }[state];
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backArrow}>←</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.backChevron}>‹</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.menuButton}>
+        <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.menuDots}>⋯</Text>
         </TouchableOpacity>
       </View>
@@ -206,14 +170,14 @@ export default function BookScreen({ navigation, route }: Props) {
           <Text style={styles.noSessions}>No notes yet</Text>
         ) : (
           sessions.map(session => {
-            const isExpanded = expandedId === session.id;
+            const isExpanded  = expandedId === session.id;
             const isHighlighted = session.id === highlightSessionId;
             return (
               <TouchableOpacity
                 key={session.id}
                 style={[styles.sessionItem, isHighlighted && styles.sessionHighlighted]}
                 onPress={() => setExpandedId(isExpanded ? null : session.id)}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
                 <View style={styles.sessionHeader}>
                   <Text style={styles.sessionDate}>{formatDate(session.sessionDate)}</Text>
@@ -249,32 +213,24 @@ export default function BookScreen({ navigation, route }: Props) {
           })
         )}
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 130 }} />
       </ScrollView>
 
-      {/* Overlay */}
+      {/* Recording overlay */}
       {showOverlay && (
-        <View style={styles.overlay}>
-          <Text style={styles.overlayLabel}>{overlayLabel}</Text>
-        </View>
+        <RecordingOverlay
+          state={state as 'recording' | 'transcribing' | 'extracting'}
+          durationMs={durationMs}
+          bookTitle={book?.title}
+        />
       )}
 
       {/* FAB */}
-      <View style={styles.fab}>
-        {isRecording && (
-          <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
-        )}
-        {isProcessing ? (
-          <ActivityIndicator size="large" color={RED} />
-        ) : (
-          <TouchableOpacity
-            style={[styles.recordButton, isRecording && styles.recordButtonActive]}
-            onPress={isRecording ? stop : start}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.recordIcon, isRecording && styles.stopIcon]} />
-          </TouchableOpacity>
-        )}
+      <View style={styles.fabContainer}>
+        <Fab
+          fabState={isRecording ? 'recording' : isProcessing ? 'processing' : 'idle'}
+          onPress={isRecording ? stop : start}
+        />
       </View>
 
       {/* Wrong book correction */}
@@ -290,7 +246,7 @@ export default function BookScreen({ navigation, route }: Props) {
         />
       )}
 
-      {/* Menu — high zIndex container ensures it's above all content */}
+      {/* Menu */}
       {menuOpen && (
         <View style={[StyleSheet.absoluteFillObject, { zIndex: 999 }]}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setMenuOpen(false)} />
@@ -312,7 +268,7 @@ export default function BookScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: PAPER,
   },
   headerRow: {
     paddingHorizontal: 16,
@@ -322,19 +278,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backButton: {
+  navButton: {
     padding: 4,
   },
-  backArrow: {
-    fontSize: 24,
-    color: '#1A1A1A',
-  },
-  menuButton: {
-    padding: 4,
+  backChevron: {
+    fontSize: 32,
+    color: NAVY,
+    lineHeight: 34,
   },
   menuDots: {
     fontSize: 22,
-    color: '#1A1A1A',
+    color: NAVY,
     letterSpacing: 1,
   },
   menuCard: {
@@ -342,31 +296,31 @@ const styles = StyleSheet.create({
     top: 56,
     right: 16,
     zIndex: 100,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: SURFACE,
+    borderRadius: 14,
     paddingVertical: 4,
     minWidth: 160,
-    shadowColor: '#000',
+    shadowColor: NAVY,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
     elevation: 8,
   },
   menuItem: {
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 16,
   },
   menuItemText: {
     fontSize: 15,
-    color: '#1A1A1A',
+    color: NAVY,
   },
   menuItemDestructive: {
     fontSize: 15,
-    color: RED,
+    color: DESTRUCTIVE,
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: HAIRLINE,
   },
   scroll: {
     paddingHorizontal: 20,
@@ -378,78 +332,81 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   cover: {
-    width: 80,
-    height: 116,
-    borderRadius: 6,
-    backgroundColor: '#E0E0E0',
+    width: 104,
+    height: 152,
+    borderRadius: 4,
+    backgroundColor: '#C8BFAF',
   },
   coverPlaceholder: {
-    width: 80,
-    height: 116,
-    borderRadius: 6,
-    backgroundColor: '#E0E0E0',
+    width: 104,
+    height: 152,
+    borderRadius: 4,
+    backgroundColor: '#C8BFAF',
   },
   bookMeta: {
     flex: 1,
-    gap: 4,
+    gap: 5,
     justifyContent: 'center',
   },
   bookTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontFamily: 'Newsreader_600SemiBold',
+    fontSize: 24,
+    color: NAVY,
+    lineHeight: 28,
+    letterSpacing: -0.4,
   },
   bookAuthor: {
     fontSize: 14,
-    color: '#555',
+    color: MUTED,
   },
   bookDetail: {
-    fontSize: 13,
-    color: '#AAA',
+    fontSize: 12.5,
+    color: FAINT,
   },
   divider: {
     height: 1,
-    backgroundColor: '#EBEBEB',
+    backgroundColor: HAIRLINE,
     marginBottom: 16,
   },
   noSessions: {
     fontSize: 15,
-    color: '#AAA',
+    color: MUTED,
     textAlign: 'center',
     marginTop: 32,
   },
   sessionItem: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: SURFACE,
+    borderRadius: 14,
     padding: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-    gap: 6,
+    marginBottom: 11,
+    ...CARD_SHADOW,
+    gap: 7,
   },
   sessionHighlighted: {
-    borderWidth: 1.5,
-    borderColor: RED + '60',
-    backgroundColor: '#FFF8F8',
+    borderWidth: 1,
+    borderColor: ACCENT + 'AA',
+    shadowColor: ACCENT,
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
   },
   sessionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
   },
   sessionDate: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#888',
+    fontSize: 11,
+    fontWeight: '700',
+    color: MUTED,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   sessionChapter: {
-    fontSize: 12,
-    color: '#AAA',
+    fontFamily: 'Newsreader_400Regular_Italic',
+    fontSize: 13.5,
+    color: ACCENT,
+    lineHeight: 18,
   },
   sessionActions: {
     flexDirection: 'row',
@@ -463,65 +420,14 @@ const styles = StyleSheet.create({
   },
   sessionAction: {
     fontSize: 13,
-    color: '#AAA',
+    color: MUTED,
   },
   sessionActionDestructive: {
-    color: RED,
+    color: DESTRUCTIVE,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(250,250,250,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  overlayLabel: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: RED,
-    fontVariant: ['tabular-nums'],
-  },
-  fab: {
+  fabContainer: {
     position: 'absolute',
-    bottom: 36,
+    bottom: 30,
     alignSelf: 'center',
-    width: 72,
-    height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: RED,
-    opacity: 0.2,
-  },
-  recordButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: RED,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: RED,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  recordButtonActive: {
-    backgroundColor: DARK_RED,
-  },
-  recordIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#fff',
-  },
-  stopIcon: {
-    borderRadius: 4,
-    width: 20,
-    height: 20,
   },
 });
