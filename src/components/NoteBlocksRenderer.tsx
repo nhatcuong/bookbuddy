@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { NoteBlock } from '../types/note';
+import { ACCENT, BODY, INK, FAINT } from '../tokens';
 
 type Props = {
   blocks: NoteBlock[];
-  collapsed?: boolean; // if true, render a plain 2-line preview (for list rows)
+  collapsed?: boolean;
 };
 
 export default function NoteBlocksRenderer({ blocks, collapsed = false }: Props) {
@@ -44,24 +45,26 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   thought: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
+    fontSize: 15.5,
+    color: BODY,
+    lineHeight: 25,
   },
   quoteBlock: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#E53935',
-    paddingLeft: 12,
-    gap: 4,
+    borderLeftWidth: 2.5,
+    borderLeftColor: ACCENT,
+    paddingLeft: 15,
+    gap: 5,
   },
   quoteText: {
-    fontSize: 15,
-    fontStyle: 'italic',
-    color: '#444',
-    lineHeight: 22,
+    fontFamily: 'Newsreader_400Regular_Italic',
+    fontSize: 16,
+    color: INK,
+    lineHeight: 25,
   },
   quoteLocation: {
-    fontSize: 12,
-    color: '#AAA',
+    fontSize: 11.5,
+    color: FAINT,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
 });

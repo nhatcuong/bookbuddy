@@ -1,5 +1,74 @@
 # Build Log
 
+## Session 11 — 2026-06-06
+
+### What we did
+- **T19: Visual redesign** (PR #13)
+  - Installed `expo-blur` + `@expo-google-fonts/newsreader`
+  - `src/tokens.ts` — single source of truth for all design tokens
+  - `src/components/Fab.tsx` — icon-free navy disc, breathe+glow at rest, accent+pulse when recording, reduced-motion aware
+  - `src/components/RecordingOverlay.tsx` — unified BlurView overlay: contextual label, 56px tabular timer, 5-bar waveform, processing spinner
+  - `src/components/NoteBlocksRenderer.tsx` — accent blue border on quotes, Newsreader italic, uppercase location caption
+  - `src/components/UnifiedPrompt.tsx` — navy-tinted BlurView, Newsreader heading, reuses Fab
+  - `src/screens/HomeScreen.tsx` — serif/italic wordmark, redesigned book cards, accent dot on active row
+  - `src/screens/BookScreen.tsx` — larger cover, chapter in Newsreader italic accent, highlight glow
+  - `App.tsx` — loads 6 Newsreader font variants, returns null until ready
+
+### Decisions made
+- FAB is icon-free: breathe+glow invites the tap; color shift + overlay carry the "recording" meaning
+- Clothbound placeholder covers deferred — `#C8BFAF` warm beige for now, sufficient for MVP
+- pre-existing TS errors in VoiceCaptureScreen/identifyBook not touched (out of scope)
+
+### Next session
+- Build dev app, test T19 on device (fonts, FAB animation, overlay, all screens)
+- Merge PR #13 if it looks good
+
+---
+
+## Session 10 — 2026-06-05
+
+### What we did
+- **Claude Design prompt for T19/T20** — drafted the full visual redesign brief
+  - Finalized color palette from Bb logo: navy `#1B2A4A` (primary), light blue `#7BA7C9` (accent), white/off-white bg; red `#E53935` fully removed
+  - Decided on 4 screens to mockup: Home (book shelf), Book (sessions + note cards), Recording overlay, Retry prompt ("Sorry, what book was that?")
+  - Recording overlay: unified blur/dim experience across Home and Book screens — contextual label transitions recording → transcribing → identifying → saving
+  - FAB without red: mic icon + pulse ring + overlay label + active color shift to accent blue together replace the red "record" convention
+  - Find mode: deferred entirely — FAB stays pure record; Find will be a header search icon (voice-first) when built in a future phase
+  - Timeline view: confirmed as Phase 2 — book shelf stays as home screen (better empty state, motivating collection feel)
+
+### Decisions made
+- Find mode has no UI presence yet — no toggle above FAB, no second button
+- Book shelf (not timeline) stays as the home screen; timeline is a secondary view once there's enough data
+- FAB color convention: rely on icon + motion + overlay, not color alone
+- Claude Design prompt is ready to paste — user will submit it next session
+
+### Next session
+- Build dev app, test T19 on device (fonts, FAB animation, overlay, all screens)
+- Merge PR #13 if it looks good
+
+---
+
+## Session 9 — 2026-05-29/30
+
+### What we did
+- **T12/T13: Re-record and delete note actions** (PR #12)
+  - New `deleteSession(sessionId)` in `database.ts`
+  - Expanded sessions now show three actions: **Wrong book?** (left) · **Re-record** · **Delete** (right)
+  - Re-record: stores old session id in `rerecordRef`, calls `start()` immediately, deletes old session in `onComplete`
+  - Delete: confirmation alert → `deleteSession` → reload
+  - Both verified working on device
+- **Production build**
+  - Resolved provisioning profile error: built once from Xcode GUI to regenerate profile, then switched to terminal
+  - `SENTRY_DISABLE_AUTO_UPLOAD=true` must be passed at shell level (not picked up from `.env` by Xcode)
+  - Dev and production builds coexist on device (`com.nnc.bookbuddy.dev` vs `com.nnc.bookbuddy`)
+  - Production build: `npx expo prebuild --platform ios --clean` then `SENTRY_DISABLE_AUTO_UPLOAD=true npx expo run:ios --configuration Release`
+  - Profile trust required on device after each new bundle ID install
+
+### Next session
+- T19/T20: Claude Design briefs + visual redesign — last step before daily use
+
+---
+
 ## Session 8 — 2026-05-27
 
 ### What we did

@@ -4,6 +4,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
+import {
+  useFonts,
+  Newsreader_400Regular,
+  Newsreader_500Medium,
+  Newsreader_600SemiBold,
+  Newsreader_400Regular_Italic,
+  Newsreader_500Medium_Italic,
+  Newsreader_600SemiBold_Italic,
+} from '@expo-google-fonts/newsreader';
 import { initDatabase } from './src/db/database';
 import HomeScreen from './src/screens/HomeScreen';
 import BookScreen from './src/screens/BookScreen';
@@ -17,9 +26,20 @@ Sentry.init({
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Newsreader_400Regular,
+    Newsreader_500Medium,
+    Newsreader_600SemiBold,
+    Newsreader_400Regular_Italic,
+    Newsreader_500Medium_Italic,
+    Newsreader_600SemiBold_Italic,
+  });
+
   useEffect(() => {
     initDatabase();
   }, []);
+
+  if (!fontsLoaded) return null;
 
   return (
     <SafeAreaProvider>

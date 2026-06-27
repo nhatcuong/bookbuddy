@@ -19,12 +19,14 @@
     ]
   },
   "dependencies": {
+    "@expo-google-fonts/newsreader": "^0.4.1",
     "@react-navigation/native": "^7.2.2",
     "@react-navigation/native-stack": "^7.14.10",
     "@sentry/react-native": "^8.11.1",
     "expo": "~55.0.0",
     "expo-asset": "~55.0.0",
     "expo-audio": "~55.0.0",
+    "expo-blur": "~55.0.14",
     "expo-dev-client": "~55.0.0",
     "expo-document-picker": "~55.0.0",
     "expo-file-system": "~55.0.0",
