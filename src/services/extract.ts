@@ -73,7 +73,7 @@ export async function extractNoteOnly(transcript: string, bookTitle: string, boo
       messages: [
         {
           role: 'user',
-          content: `I just finished a reading session of "${bookTitle}"${bookAuthor ? ` by ${bookAuthor}` : ''} and spoke this note aloud. Structure my spoken thoughts as a clean note.\n\n"${transcript}"`,
+          content: `I just finished a reading session of "${bookTitle}"${bookAuthor ? ` by ${bookAuthor}` : ''}, and here's my note:\n\n"${transcript}"`,
         },
       ],
     }),
@@ -234,7 +234,7 @@ export async function extractBookInfo(transcript: string): Promise<ExtractedNote
       messages: [
         {
           role: 'user',
-          content: `I just finished a reading session and spoke this note aloud. Extract the book I was reading (title, author, chapter) and structure my spoken thoughts as a clean note.\n\n"${transcript}"`,
+          content: `I just finished a reading session, and here's my note:\n\n"${transcript}"`,
         },
       ],
     }),
