@@ -89,6 +89,83 @@ export async function extractNoteOnly(transcript: string): Promise<{ chapter: st
   return toolUse.input as { chapter: string | null; blocks: NoteBlock[] };
 }
 
+export async function amendNote(existingBlocks: NoteBlock[], amendTranscript: string): Promise<NoteBlock[]> {
+  if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'your_anthropic_api_key_here') {
+    throw new ExtractError('Anthropic API key not set in .env');
+  }
+
+  const existingText = existingBlocks
+    .map((b, i) => {
+      const loc = b.type === 'quote' && b.location ? ` [${b.location}]` : '';
+      return `[${i + 1}] (${b.type}) ${b.text}${loc}`;
+    })
+    .join('\n');
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-6',
+      max_tokens: 1024,
+      tools: [
+        {
+          name: 'amend_reading_note',
+          description: 'Apply a spoken amendment to an existing reading note and return the complete updated blocks.',
+          input_schema: {
+            type: 'object',
+            properties: {
+              blocks: {
+                type: 'array',
+                description:
+                  'The complete updated note as an ordered list of blocks. ' +
+                  'Apply the amendment as follows: ' +
+                  '(1) If the user corrects a word or phrase (e.g. "I said metrics not matrix"), find and fix it in the relevant block. ' +
+                  '(2) If the user adds new thoughts, append them as new thought blocks. ' +
+                  '(3) If the user amends a specific sentence or idea, update the relevant block in place. ' +
+                  'Preserve all unchanged blocks exactly. ' +
+                  'Only use type "quote" if the block was already a quote or the amendment explicitly introduces quoted text.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['thought', 'quote'] },
+                    text: { type: 'string' },
+                    location: { type: ['string', 'null'] },
+                  },
+                  required: ['type', 'text', 'location'],
+                },
+              },
+            },
+            required: ['blocks'],
+          },
+        },
+      ],
+      tool_choice: { type: 'tool', name: 'amend_reading_note' },
+      messages: [
+        {
+          role: 'user',
+          content: `Existing note:\n${existingText}\n\nAmendment (spoken by user):\n"${amendTranscript}"\n\nApply the amendment and return the complete updated note.`,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new ExtractError(`Claude API error: ${response.status}`);
+  }
+
+  const json = await response.json();
+  const toolUse = json.content?.find((b: any) => b.type === 'tool_use');
+  if (!toolUse) {
+    throw new ExtractError('No structured output from Claude');
+  }
+
+  return (toolUse.input as { blocks: NoteBlock[] }).blocks;
+}
+
 export async function extractBookInfo(transcript: string): Promise<ExtractedNote> {
   if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'your_anthropic_api_key_here') {
     throw new ExtractError('Anthropic API key not set in .env');
