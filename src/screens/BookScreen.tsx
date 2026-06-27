@@ -110,7 +110,7 @@ export default function BookScreen({ navigation, route }: Props) {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
     try {
-      const updatedBlocks = await amendNote(session.note, transcript);
+      const updatedBlocks = await amendNote(session.note, transcript, book?.title ?? '', book?.author ?? null);
       updateSessionNote(sessionId, updatedBlocks);
       load();
     } catch (err: any) {
