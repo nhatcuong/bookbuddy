@@ -145,14 +145,25 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
 
   async function stop() {
     try {
+      const durationAtStop = recorderState.durationMillis ?? 0;
       await recorder.stop();
       const tempUri = recorder.uri;
       if (!tempUri) throw new Error('No recording URI');
+
+      if (durationAtStop < 1500) {
+        setState('idle');
+        return;
+      }
 
       const fileUri = await saveAudioFile(tempUri);
 
       setState('transcribing');
       const transcript = await transcribeAudio(fileUri);
+
+      if (!transcript.trim()) {
+        setState('idle');
+        return;
+      }
 
       setState('extracting');
       const result = await processTranscript(transcript);
