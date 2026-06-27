@@ -132,6 +132,10 @@ export function insertReadingSessionRaw(
   );
 }
 
+export function updateSessionNote(sessionId: number, blocks: NoteBlock[]): void {
+  db.runSync('UPDATE reading_sessions SET note = ? WHERE id = ?', JSON.stringify(blocks), sessionId);
+}
+
 export function deleteSession(sessionId: number): void {
   db.runSync('DELETE FROM reading_sessions WHERE id = ?', sessionId);
 }

@@ -1,5 +1,27 @@
 # Build Log
 
+## Session 12 — 2026-06-27
+
+### What we did
+- **Amend note feature** (PR #15) — replaces Re-record entirely
+  - `amendNote(existingBlocks, transcript, bookTitle, bookAuthor)` in `extract.ts`: sends existing note + spoken amendment to Claude, returns updated `NoteBlock[]`. Handles corrections, additions, and targeted edits in one call.
+  - `updateSessionNote(sessionId, blocks)` in `database.ts`: `UPDATE reading_sessions SET note = ?`
+  - `BookScreen`: `rerecordRef` + `handleRerecord` removed. New `amendSessionId` state shows UnifiedPrompt ("What would you like to change?"). Action row: "Wrong book?" | "Amend" · "Delete"
+- **Claude prompt improvements** (also in PR #15)
+  - Natural first-person framing: "I just finished a reading session, and here's my note"
+  - Blocks description: semantic definition of quote vs thought; implicit citation signals; paraphrase rule explicit
+  - `extractNoteOnly` and `amendNote` now receive `bookTitle` + `bookAuthor` for disambiguation
+
+### Decisions made
+- Re-record dropped: equivalent to delete + new recording, no added value
+- 2-round Claude approach rejected: latency cost outweighs benefit
+- Structured output (tool use) preferred over markup+TypeScript parsing
+
+### Next session
+- Merge PR #15 after device testing
+
+---
+
 ## Session 11 — 2026-06-06
 
 ### What we did

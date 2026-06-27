@@ -104,7 +104,8 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
   // Transcript → book + session. Returns null if the note is discarded.
   async function processTranscript(transcript: string): Promise<RecordingResult | null> {
     if (pinnedBookId != null) {
-      const { chapter, blocks } = await extractNoteOnly(transcript);
+      const pinnedBook = getBooksByLastSession().find(b => b.id === pinnedBookId) ?? null;
+      const { chapter, blocks } = await extractNoteOnly(transcript, pinnedBook?.title ?? '', pinnedBook?.author ?? null);
       const sessionId = insertReadingSession(pinnedBookId, { title: '', author: null, chapter, blocks }, transcript);
       return { bookId: pinnedBookId, sessionId };
     }

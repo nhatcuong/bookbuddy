@@ -93,7 +93,8 @@ describe('extractNoteOnly', () => {
     );
 
     const result = await extractNoteOnly(
-      'Just finished chapter 5. The decision fatigue section was really compelling.'
+      'Just finished chapter 5. The decision fatigue section was really compelling.',
+      'Test Book', 'Test Author'
     );
 
     expect(result.chapter).toBe('chapter 5');
@@ -114,7 +115,7 @@ describe('extractNoteOnly', () => {
       })
     );
 
-    const result = await extractNoteOnly('Read some of it today. The habits section was insightful.');
+    const result = await extractNoteOnly('Read some of it today. The habits section was insightful.', 'Test Book', 'Test Author');
 
     expect(result.chapter).toBeNull();
     expect(result.blocks).toEqual([{ type: 'thought', text: 'The section on habits was insightful.', location: null }]);
@@ -131,7 +132,7 @@ describe('extractNoteOnly', () => {
     // Must throw ExtractError with the status code in the message so callers
     // can surface a meaningful error to the user (not a generic crash).
     await expect(
-      extractNoteOnly('Some transcript text.')
+      extractNoteOnly('Some transcript text.', 'Test Book', 'Test Author')
     ).rejects.toThrow(ExtractError);
   });
 
@@ -145,7 +146,7 @@ describe('extractNoteOnly', () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(makeClaudeNoToolResponse());
 
     await expect(
-      extractNoteOnly('Some transcript text.')
+      extractNoteOnly('Some transcript text.', 'Test Book', 'Test Author')
     ).rejects.toThrow(ExtractError);
   });
 
@@ -165,7 +166,8 @@ describe('extractNoteOnly', () => {
     );
 
     const result = await extractNoteOnly(
-      'There was a great line in this chapter. Quote: The value of a man resides in what he gives. End quote. Page 42.'
+      'There was a great line in this chapter. Quote: The value of a man resides in what he gives. End quote. Page 42.',
+      'Test Book', 'Test Author'
     );
 
     expect(result.blocks).toHaveLength(2);

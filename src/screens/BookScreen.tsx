@@ -11,10 +11,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getBookById, getSessionsByBookId, getBooksByLastSession, deleteBook, deleteSession, reassignSession, insertBook, BookRow, SessionRow } from '../db/database';
+import { getBookById, getSessionsByBookId, getBooksByLastSession, deleteBook, deleteSession, reassignSession, updateSessionNote, insertBook, BookRow, SessionRow } from '../db/database';
 import { exportBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
-import { extractBookInfo } from '../services/extract';
+import { extractBookInfo, amendNote } from '../services/extract';
 import { fetchBookMetadata } from '../services/googleBooks';
 import { findMatchingBook } from '../services/matchBook';
 import { RootStackParamList } from '../navigation/types';
@@ -34,7 +34,7 @@ export default function BookScreen({ navigation, route }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(highlightSessionId ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [wrongBookSessionId, setWrongBookSessionId] = useState<number | null>(null);
-  const rerecordRef = useRef<number | null>(null);
+  const [amendSessionId, setAmendSessionId] = useState<number | null>(null);
 
   function load() {
     setBook(getBookById(bookId));
@@ -44,10 +44,6 @@ export default function BookScreen({ navigation, route }: Props) {
   useFocusEffect(useCallback(() => { load(); }, [bookId]));
 
   const { state, durationMs, start, stop, cleanup } = useRecording(({ sessionId }) => {
-    if (rerecordRef.current !== null) {
-      deleteSession(rerecordRef.current);
-      rerecordRef.current = null;
-    }
     load();
     setExpandedId(sessionId);
   }, bookId);
@@ -110,10 +106,16 @@ export default function BookScreen({ navigation, route }: Props) {
     }
   }
 
-  function handleRerecord(sessionId: number) {
-    rerecordRef.current = sessionId;
-    setExpandedId(null);
-    start();
+  async function handleAmend(sessionId: number, transcript: string) {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    try {
+      const updatedBlocks = await amendNote(session.note, transcript, book?.title ?? '', book?.author ?? null);
+      updateSessionNote(sessionId, updatedBlocks);
+      load();
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Could not amend note.');
+    }
   }
 
   function handleDeleteSession(sessionId: number) {
@@ -194,10 +196,10 @@ export default function BookScreen({ navigation, route }: Props) {
                     </TouchableOpacity>
                     <View style={styles.sessionActionsRight}>
                       <TouchableOpacity
-                        onPress={(e) => { e.stopPropagation(); handleRerecord(session.id); }}
+                        onPress={(e) => { e.stopPropagation(); setAmendSessionId(session.id); }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Text style={styles.sessionAction}>Re-record</Text>
+                        <Text style={styles.sessionAction}>Amend</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
@@ -243,6 +245,19 @@ export default function BookScreen({ navigation, route }: Props) {
             handleWrongBook(sid, transcript);
           }}
           onDismiss={() => setWrongBookSessionId(null)}
+        />
+      )}
+
+      {/* Amend note */}
+      {amendSessionId !== null && (
+        <UnifiedPrompt
+          message="What would you like to change?"
+          onTranscript={(transcript) => {
+            const sid = amendSessionId;
+            setAmendSessionId(null);
+            handleAmend(sid, transcript);
+          }}
+          onDismiss={() => setAmendSessionId(null)}
         />
       )}
 
