@@ -243,30 +243,17 @@ describe('useRecording — null title fallback', () => {
    * Scenario: user opens the app for the first time and speaks a note that
    * doesn't name a book. There are no books to fall back to.
    *
-   * Expected behaviour (T08): instead of an Alert, the hook suspends and
-   * exposes retryPrompt so the screen can show UnifiedPrompt. If the user
-   * dismisses (provideRetryTranscript(null)), the note is silently discarded
-   * and onComplete is NOT called.
+   * Expected behaviour: note is silently discarded and onComplete is NOT called.
    */
-  it('shows retryPrompt and discards note when user dismisses (null title, no books)', async () => {
+  it('silently discards note when no book identified and library is empty', async () => {
     (getBooksByLastSession as jest.Mock).mockReturnValue([]);
 
     const onComplete = jest.fn();
     const { result } = renderHook(() => useRecording(onComplete));
 
     await act(async () => { await result.current.start(); });
+    await act(async () => { await result.current.stop(); });
 
-    // stop() will suspend internally at awaitRetry — don't await it
-    void result.current.stop();
-
-    // Hook is suspended waiting for retry input — retryPrompt should appear
-    await waitFor(() => expect(result.current.retryPrompt).not.toBeNull());
-    expect(result.current.retryPrompt?.message).toBe('Sorry, what book was that?');
-
-    // User dismisses — provideRetryTranscript(null) breaks the retry loop
-    await act(async () => { result.current.provideRetryTranscript(null); });
-
-    // Hook should settle back to idle with no note saved
     await waitFor(() => expect(result.current.state).toBe('idle'));
     expect(onComplete).not.toHaveBeenCalled();
     expect(Alert.alert).not.toHaveBeenCalled();

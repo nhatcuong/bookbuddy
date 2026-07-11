@@ -8,8 +8,7 @@ type OverlayState = 'recording' | 'transcribing' | 'extracting';
 type Props = {
   state: OverlayState;
   durationMs: number;
-  bookTitle?: string;   // if set → "Recording a note for {title}"
-  hasBooks?: boolean;   // used on Home when bookTitle is absent
+  customLabel?: string;
 };
 
 function Waveform() {
@@ -62,7 +61,7 @@ const wave = StyleSheet.create({
   },
 });
 
-export default function RecordingOverlay({ state, durationMs, bookTitle, hasBooks = false }: Props) {
+export default function RecordingOverlay({ state, durationMs, customLabel }: Props) {
   const isRecording = state === 'recording';
 
   const mm = String(Math.floor(durationMs / 60000)).padStart(2, '0');
@@ -78,16 +77,7 @@ export default function RecordingOverlay({ state, durationMs, bookTitle, hasBook
       <View style={styles.center}>
         {isRecording ? (
           <>
-            {bookTitle ? (
-              <Text style={styles.label}>
-                <Text style={styles.labelRegular}>Recording a note for{'\n'}</Text>
-                <Text style={styles.labelItalic}>{bookTitle}</Text>
-              </Text>
-            ) : (
-              <Text style={styles.labelRegular}>
-                {hasBooks ? 'Recording a new reading note' : 'Record your first reading note'}
-              </Text>
-            )}
+            <Text style={styles.labelRegular}>{customLabel ?? 'Record your new reading note'}</Text>
             <Text style={styles.timer}>{mm}:{ss}</Text>
             <Waveform />
           </>

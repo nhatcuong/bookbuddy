@@ -17,7 +17,6 @@ import { insertBook, insertReadingSession, getBooksByLastSession } from '../db/d
 
 export type RecordingState = 'idle' | 'recording' | 'transcribing' | 'extracting' | 'done';
 export type RecordingResult = { bookId: number; sessionId: number };
-export type RetryPrompt = { message: string };
 
 // ---------------------------------------------------------------------------
 // Module-level helpers — no hook state, safe to call from anywhere
@@ -57,49 +56,12 @@ function recordingErrorMessage(err: unknown): string {
 
 export function useRecording(onComplete: (result: RecordingResult) => void, pinnedBookId?: number) {
   const [state, setState] = useState<RecordingState>('idle');
-  const [retryPrompt, setRetryPrompt] = useState<RetryPrompt | null>(null);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
-  const retryResolveRef = useRef<((text: string | null) => void) | null>(null);
 
   const durationMs = recorderState.durationMillis ?? 0;
-
-  function provideRetryTranscript(text: string | null) {
-    retryResolveRef.current?.(text);
-    retryResolveRef.current = null;
-    setRetryPrompt(null);
-  }
-
-  function awaitRetry(message: string): Promise<string | null> {
-    return new Promise(resolve => {
-      setRetryPrompt({ message });
-      retryResolveRef.current = resolve;
-    });
-  }
-
-  // No book title extracted and no books in library. Prompts the user up to
-  // twice; returns a saved result or null if the user gives up.
-  async function resolveWithRetry(transcript: string): Promise<RecordingResult | null> {
-    const prompts = [
-      "Sorry, what book was that?",
-      "I still couldn't identify it. Try again?",
-    ];
-    for (const message of prompts) {
-      const retryTranscript = await awaitRetry(message);
-      if (!retryTranscript) return null;
-
-      setState('extracting');
-      const extracted = await extractBookInfo(retryTranscript);
-      if (extracted.title !== null) {
-        const bookId = await findOrCreateBook(extracted);
-        const sessionId = insertReadingSession(bookId, extracted, retryTranscript);
-        return { bookId, sessionId };
-      }
-    }
-    return null;
-  }
 
   // Transcript → book + session. Returns null if the note is discarded.
   async function processTranscript(transcript: string): Promise<RecordingResult | null> {
@@ -125,7 +87,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
       return { bookId: lastBook.id, sessionId };
     }
 
-    return resolveWithRetry(transcript);
+    return null;
   }
 
   async function start() {
@@ -192,5 +154,5 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
     if (recorderState.isRecording) recorder.stop().catch(() => {});
   }
 
-  return { state, durationMs, start, stop, cleanup, retryPrompt, provideRetryTranscript };
+  return { state, durationMs, start, stop, cleanup };
 }
