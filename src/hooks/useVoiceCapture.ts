@@ -7,6 +7,7 @@ import {
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { transcribeAudio } from '../services/whisper';
 
 export type VoiceCaptureState = 'idle' | 'recording' | 'transcribing';
@@ -30,13 +31,14 @@ export function useVoiceCapture(onTranscript: (text: string) => void) {
     await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
     await recorder.prepareToRecordAsync();
     recorder.record();
+    await activateKeepAwakeAsync('recording');
     setState('recording');
   }
 
   async function stop() {
     await recorder.stop();
     const tempUri = recorder.uri;
-    if (!tempUri) { setState('idle'); return; }
+    if (!tempUri) { await deactivateKeepAwake('recording'); setState('idle'); return; }
 
     const dir = new Directory(Paths.document, 'recordings');
     if (!dir.exists) dir.create();
@@ -46,9 +48,11 @@ export function useVoiceCapture(onTranscript: (text: string) => void) {
     setState('transcribing');
     try {
       const text = await transcribeAudio(dest.uri);
+      await deactivateKeepAwake('recording');
       setState('idle');
       onTranscriptRef.current(text);
     } catch {
+      await deactivateKeepAwake('recording');
       setState('idle');
     }
   }

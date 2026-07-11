@@ -8,6 +8,7 @@ import {
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Sentry from '@sentry/react-native';
 import { transcribeAudio, WhisperError } from '../services/whisper';
 import { extractBookInfo, extractNoteOnly, ExtractedNote, ExtractError } from '../services/extract';
@@ -100,6 +101,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
+      await activateKeepAwakeAsync('recording');
       setState('recording');
     } catch {
       Alert.alert('Error', 'Could not start recording.');
@@ -114,6 +116,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
       if (!tempUri) throw new Error('No recording URI');
 
       if (durationAtStop < 1500) {
+        await deactivateKeepAwake('recording');
         setState('idle');
         return;
       }
@@ -124,12 +127,15 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
       const transcript = await transcribeAudio(fileUri);
 
       if (!transcript.trim()) {
+        await deactivateKeepAwake('recording');
         setState('idle');
         return;
       }
 
       setState('extracting');
       const result = await processTranscript(transcript);
+
+      await deactivateKeepAwake('recording');
 
       if (!result) {
         setState('idle');
@@ -146,6 +152,7 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
         : 'UnknownError';
       Sentry.addBreadcrumb({ category: 'recording', message: 'recording_failed', data: { errorType } });
       Alert.alert('Error', recordingErrorMessage(err));
+      await deactivateKeepAwake('recording');
       setState('idle');
     }
   }
