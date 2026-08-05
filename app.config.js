@@ -19,6 +19,7 @@ export default {
       infoPlist: {
         NSMicrophoneUsageDescription:
           'Syntopico uses the microphone to record your spoken reading notes, which are transcribed into text.',
+        ITSAppUsesNonExemptEncryption: false,
       },
     },
     android: {
