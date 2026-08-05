@@ -13,6 +13,7 @@ import {
   Newsreader_500Medium_Italic,
   Newsreader_600SemiBold_Italic,
 } from '@expo-google-fonts/newsreader';
+import { Bellefair_400Regular } from '@expo-google-fonts/bellefair';
 import { initDatabase } from './src/db/database';
 import HomeScreen from './src/screens/HomeScreen';
 import BookScreen from './src/screens/BookScreen';
@@ -33,6 +34,7 @@ export default function App() {
     Newsreader_400Regular_Italic,
     Newsreader_500Medium_Italic,
     Newsreader_600SemiBold_Italic,
+    Bellefair_400Regular,
   });
 
   useEffect(() => {
