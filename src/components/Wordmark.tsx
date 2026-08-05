@@ -6,7 +6,7 @@ type Props = {
 };
 
 export default function Wordmark({ size = 28 }: Props) {
-  const dotSize = size * 0.5;
+  const dotSize = size * 0.38;
 
   return (
     <View style={styles.row}>
@@ -18,7 +18,7 @@ export default function Wordmark({ size = 28 }: Props) {
             width: dotSize,
             height: dotSize,
             borderRadius: dotSize / 2,
-            marginBottom: size * 0.1,
+            marginBottom: size * 0.255,
           },
         ]}
       />
