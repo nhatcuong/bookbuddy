@@ -165,7 +165,7 @@ export default function VoiceCaptureScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>BookBuddy</Text>
+      <Text style={styles.title}>Syntopico</Text>
       <Text style={styles.subtitle}>{subtitleText}</Text>
 
       <Text style={styles.duration}>

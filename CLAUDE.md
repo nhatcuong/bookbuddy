@@ -1,4 +1,4 @@
-# BookBuddy
+# Syntopico
 
 A voice-first reading companion app for tracking books, capturing reading thoughts, and synthesizing learning over time.
 

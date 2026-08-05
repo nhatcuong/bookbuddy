@@ -2,8 +2,8 @@ const IS_DEV = process.env.APP_VARIANT === 'development';
 
 export default {
   expo: {
-    name: IS_DEV ? 'BookBuddy (Dev)' : 'BookBuddy',
-    slug: 'bookbuddy',
+    name: IS_DEV ? 'Syntopico (Dev)' : 'Syntopico',
+    slug: 'syntopico',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -15,7 +15,11 @@ export default {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: IS_DEV ? 'com.nnc.bookbuddy.dev' : 'com.nnc.bookbuddy',
+      bundleIdentifier: IS_DEV ? 'com.nnc.syntopico.dev' : 'com.nnc.syntopico',
+      infoPlist: {
+        NSMicrophoneUsageDescription:
+          'Syntopico uses the microphone to record your spoken reading notes, which are transcribed into text.',
+      },
     },
     android: {
       adaptiveIcon: {
@@ -39,6 +43,11 @@ export default {
     ],
     experiments: {
       newArchEnabled: true,
+    },
+    extra: {
+      eas: {
+        projectId: 'd13aac97-d731-49cf-9f6b-fbc72e2a4de1',
+      },
     },
   },
 };

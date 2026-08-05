@@ -1,5 +1,35 @@
 # Build Log
 
+## Session 14 — 2026-08-05
+
+### What we did
+- **Apple Developer Program enrollment** — paid individual membership ($99/yr), unblocks year-long dev signing and TestFlight distribution (was previously hitting 7-day free-signing resigns on daily-driver phone)
+- **EAS Build/Submit setup** — no `eas.json` existed before; added `development`/`preview`/`production` build profiles
+  - `app.config.js`: added `extra.eas.projectId` (dynamic config required manual edit — `eas init` can't write to `.js` configs)
+  - Fixed cloud build failure: `SENTRY_DISABLE_AUTO_UPLOAD` was only in local `.env` (gitignored, invisible to EAS's cloud builder) — added to each `eas.json` build profile's `env`
+  - Moved `EXPO_PUBLIC_OPENAI_API_KEY` / `EXPO_PUBLIC_ANTHROPIC_API_KEY` / `EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY` / `EXPO_PUBLIC_SENTRY_DSN` to EAS encrypted environment variables (`eas env:create`) — same `.env`-not-reaching-cloud-builder issue, and these are secrets so they don't belong in the committed `eas.json`
+  - Added missing `ios.infoPlist.NSMicrophoneUsageDescription` to `app.config.js` — required by App Store review, was previously unset
+  - First production build + submit succeeded; app now live in App Store Connect; TestFlight internal testing configured (export compliance answered, self added as internal tester)
+- **Rename: BookBuddy → Syntopico** — "BookBuddy" was already taken on the App Store
+  - New logo (serif "S" + accent-blue dot, same palette) rasterized into `icon.png`, `splash-icon.png`, `android-icon-foreground.png`, `favicon.png` via `rsvg-convert` (installed, wasn't present locally)
+  - Renamed in `app.config.js` (display name, slug, mic permission string), `package.json`, `tokens.ts` comment, in-app title (`VoiceCaptureScreen.tsx`), `CLAUDE.md`, `flows.md`
+  - Bundle identifier switched `com.nnc.bookbuddy` → `com.nnc.syntopico` (see decisions)
+
+### Decisions made
+- Bundle identifier: chose to switch to `com.nnc.syntopico` rather than keep `com.nnc.bookbuddy` — fully consistent branding, accepted the cost (new Apple App ID, new App Store Connect app record, redo TestFlight setup, local data doesn't carry over automatically)
+- SQLite filename (`bookbuddy.db`) left unchanged — purely internal, invisible to users, no reason to risk a data reset for a cosmetic rename
+- `android-icon-background.png`/`android-icon-monochrome.png` left as Expo's unmodified scaffold defaults — never customized even under the BookBuddy brand, out of scope here
+- Stale unused `app.json` (superseded by `app.config.js`, config drifted out of sync) left in place, flagged for a future cleanup pass
+- TestFlight builds expire 90 days after processing — separate, much less painful cadence than the old 7-day free-signing cycle; full App Store release is the only way to remove renewal entirely
+
+### Next session
+- Run `eas build --platform ios --profile production` under the new `com.nnc.syntopico` bundle id (registers a new Apple App ID)
+- `eas submit` to create the new Syntopico App Store Connect app record (may hit the same "name taken" auto-rename as before)
+- Export each book via `bookBackup.ts`'s `exportBook` from the old `com.nnc.bookbuddy` install, re-import into the new app after install
+- Redo TestFlight internal tester setup for the new app record
+
+---
+
 ## Session 12 — 2026-06-27
 
 ### What we did
