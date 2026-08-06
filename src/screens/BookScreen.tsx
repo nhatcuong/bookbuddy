@@ -14,12 +14,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getBookById, getSessionsByBookId, getBooksByLastSession, deleteBook, deleteSession, reassignSession, updateSessionNote, insertBook, BookRow, SessionRow } from '../db/database';
 import { exportBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
+import { useVoiceCapture } from '../hooks/useVoiceCapture';
 import { extractBookInfo, amendNote } from '../services/extract';
 import { fetchBookMetadata } from '../services/googleBooks';
 import { findMatchingBook } from '../services/matchBook';
 import { RootStackParamList } from '../navigation/types';
 import NoteBlocksRenderer from '../components/NoteBlocksRenderer';
-import UnifiedPrompt from '../components/UnifiedPrompt';
 import Fab from '../components/Fab';
 import RecordingOverlay from '../components/RecordingOverlay';
 import { NAVY, ACCENT, MUTED, FAINT, DESTRUCTIVE, PAPER, SURFACE, HAIRLINE, CARD_SHADOW } from '../tokens';
@@ -50,9 +50,27 @@ export default function BookScreen({ navigation, route }: Props) {
 
   useEffect(() => () => cleanup(), []);
 
-  const isRecording  = state === 'recording';
-  const isProcessing = state === 'transcribing' || state === 'extracting';
-  const showOverlay  = isRecording || isProcessing;
+  const amendCapture = useVoiceCapture((transcript) => {
+    if (amendSessionId !== null) {
+      const sid = amendSessionId;
+      setAmendSessionId(null);
+      handleAmend(sid, transcript);
+    }
+  });
+
+  const wrongBookCapture = useVoiceCapture((transcript) => {
+    if (wrongBookSessionId !== null) {
+      const sid = wrongBookSessionId;
+      setWrongBookSessionId(null);
+      handleWrongBook(sid, transcript);
+    }
+  });
+
+  const isRecording    = state === 'recording';
+  const isProcessing   = state === 'transcribing' || state === 'extracting';
+  const showOverlay    = isRecording || isProcessing;
+  const amendIsActive  = amendCapture.state !== 'idle';
+  const wrongBookIsActive = wrongBookCapture.state !== 'idle';
 
   async function handleExport() {
     setMenuOpen(false);
@@ -189,17 +207,23 @@ export default function BookScreen({ navigation, route }: Props) {
                 {isExpanded && (
                   <View style={styles.sessionActions}>
                     <TouchableOpacity
-                      onPress={(e) => { e.stopPropagation(); setWrongBookSessionId(session.id); }}
+                      onPress={(e) => { e.stopPropagation(); setWrongBookSessionId(session.id); wrongBookCapture.start(); }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Text style={styles.sessionAction}>Wrong book?</Text>
+                      <View style={styles.recordTrigger}>
+                        <Text style={styles.sessionAction}>Wrong book?</Text>
+                        <View style={styles.recordDot} />
+                      </View>
                     </TouchableOpacity>
                     <View style={styles.sessionActionsRight}>
                       <TouchableOpacity
-                        onPress={(e) => { e.stopPropagation(); setAmendSessionId(session.id); }}
+                        onPress={(e) => { e.stopPropagation(); setAmendSessionId(session.id); amendCapture.start(); }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Text style={styles.sessionAction}>Amend</Text>
+                        <View style={styles.recordTrigger}>
+                          <Text style={styles.sessionAction}>Amend</Text>
+                          <View style={styles.recordDot} />
+                        </View>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
@@ -223,43 +247,41 @@ export default function BookScreen({ navigation, route }: Props) {
         <RecordingOverlay
           state={state as 'recording' | 'transcribing' | 'extracting'}
           durationMs={durationMs}
-          bookTitle={book?.title}
+          customLabel="Record your new reading note"
+        />
+      )}
+      {amendIsActive && (
+        <RecordingOverlay
+          state={amendCapture.state as 'recording' | 'transcribing'}
+          durationMs={amendCapture.durationMs}
+          customLabel="Amend a reading note"
+        />
+      )}
+      {wrongBookIsActive && (
+        <RecordingOverlay
+          state={wrongBookCapture.state as 'recording' | 'transcribing'}
+          durationMs={wrongBookCapture.durationMs}
+          customLabel="What book was that?"
         />
       )}
 
       {/* FAB */}
       <View style={styles.fabContainer}>
         <Fab
-          fabState={isRecording ? 'recording' : isProcessing ? 'processing' : 'idle'}
-          onPress={isRecording ? stop : start}
+          fabState={
+            wrongBookCapture.state === 'recording'    ? 'recording'  :
+            wrongBookCapture.state === 'transcribing' ? 'processing' :
+            amendCapture.state === 'recording'        ? 'recording'  :
+            amendCapture.state === 'transcribing'     ? 'processing' :
+            isRecording ? 'recording' : isProcessing  ? 'processing' : 'idle'
+          }
+          onPress={
+            wrongBookCapture.state === 'recording' ? wrongBookCapture.stop :
+            amendCapture.state === 'recording'     ? amendCapture.stop     :
+            isRecording ? stop : start
+          }
         />
       </View>
-
-      {/* Wrong book correction */}
-      {wrongBookSessionId !== null && (
-        <UnifiedPrompt
-          message="Which book was this for?"
-          onTranscript={(transcript) => {
-            const sid = wrongBookSessionId;
-            setWrongBookSessionId(null);
-            handleWrongBook(sid, transcript);
-          }}
-          onDismiss={() => setWrongBookSessionId(null)}
-        />
-      )}
-
-      {/* Amend note */}
-      {amendSessionId !== null && (
-        <UnifiedPrompt
-          message="What would you like to change?"
-          onTranscript={(transcript) => {
-            const sid = amendSessionId;
-            setAmendSessionId(null);
-            handleAmend(sid, transcript);
-          }}
-          onDismiss={() => setAmendSessionId(null)}
-        />
-      )}
 
       {/* Menu */}
       {menuOpen && (
@@ -439,6 +461,18 @@ const styles = StyleSheet.create({
   },
   sessionActionDestructive: {
     color: DESTRUCTIVE,
+  },
+  recordTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  recordDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: ACCENT,
+    opacity: 0.7,
   },
   fabContainer: {
     position: 'absolute',

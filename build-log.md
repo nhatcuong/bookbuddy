@@ -30,6 +30,29 @@
 
 ---
 
+## Session 13 — 2026-07-11
+
+### What we did
+- **Replace modal voice prompts with direct-record triggers**
+  - Amend and "Wrong book?" now start recording immediately on tap — no more intermediate `UnifiedPrompt` modal screen
+  - New `useVoiceCapture` hook: shared recording flow for secondary voice actions (amend, wrong-book), used by `BookScreen`/`HomeScreen`
+  - `RecordingOverlay` label adapts per scenario: "Amend a reading note", "What book was that?", "Record your new reading note"
+  - `UnifiedPrompt.tsx` deleted entirely
+  - Retry logic removed from `useRecording`: unidentified notes with no library match are now silently dropped instead of prompting retry
+  - Blue dot indicator added to Amend and Wrong Book buttons to signal they trigger the mic directly
+- **Keep screen awake during recording/transcription**
+  - `expo-keep-awake` activated when recording starts, deactivated on completion or error
+  - Covers all three recording paths: new note, amend, wrong-book
+
+### Decisions made
+- Modal confirmation step before recording adds friction without value — direct-record trigger matches "zero friction on input" principle
+- Retry-on-unidentified-book dropped in favor of silent drop when no library exists yet to disambiguate against
+
+### Next session
+- Test end-to-end on device (direct-record triggers, overlay labels, keep-awake across all 3 paths)
+
+---
+
 ## Session 12 — 2026-06-27
 
 ### What we did

@@ -15,7 +15,6 @@ import { getBooksByLastSession, BookRow } from '../db/database';
 import { importBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
 import { RootStackParamList } from '../navigation/types';
-import UnifiedPrompt from '../components/UnifiedPrompt';
 import Fab from '../components/Fab';
 import RecordingOverlay from '../components/RecordingOverlay';
 import Wordmark from '../components/Wordmark';
@@ -33,7 +32,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => { loadBooks(); }, []));
 
-  const { state, durationMs, start, stop, cleanup, retryPrompt, provideRetryTranscript } = useRecording(({ bookId, sessionId }) => {
+  const { state, durationMs, start, stop, cleanup } = useRecording(({ bookId, sessionId }) => {
     loadBooks();
     navigation.navigate('Book', { bookId, highlightSessionId: sessionId });
   });
@@ -120,7 +119,7 @@ export default function HomeScreen({ navigation }: Props) {
         <RecordingOverlay
           state={state as 'recording' | 'transcribing' | 'extracting'}
           durationMs={durationMs}
-          hasBooks={books.length > 0}
+          customLabel="Record your new reading note"
         />
       )}
 
@@ -131,15 +130,6 @@ export default function HomeScreen({ navigation }: Props) {
           onPress={isRecording ? stop : start}
         />
       </View>
-
-      {/* Retry prompt */}
-      {retryPrompt && (
-        <UnifiedPrompt
-          message={retryPrompt.message}
-          onTranscript={provideRetryTranscript}
-          onDismiss={() => provideRetryTranscript(null)}
-        />
-      )}
 
       {/* Menu */}
       {menuOpen && (
