@@ -1,4 +1,4 @@
-# BookBuddy — Supported Flows
+# Syntopico — Supported Flows
 
 This document describes every user-facing flow currently implemented in the app.
 It is the authoritative reference for what the app does today (not what is planned).

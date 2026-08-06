@@ -17,6 +17,7 @@ import { ExtractError } from '../services/extract';
 import { GoogleBooksError } from '../services/googleBooks';
 import { identifyBook, BookCandidate } from '../services/identifyBook';
 import { insertBook, insertReadingSession } from '../db/database';
+import Wordmark from '../components/Wordmark';
 
 type RecordingState = 'idle' | 'recording' | 'transcribing' | 'extracting' | 'fetching' | 'done';
 
@@ -165,7 +166,7 @@ export default function VoiceCaptureScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>BookBuddy</Text>
+      <Wordmark />
       <Text style={styles.subtitle}>{subtitleText}</Text>
 
       <Text style={styles.duration}>
@@ -240,11 +241,6 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingHorizontal: 24,
     paddingVertical: 60,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1A1A1A',
   },
   subtitle: {
     fontSize: 15,

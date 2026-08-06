@@ -17,6 +17,7 @@ import { useRecording } from '../hooks/useRecording';
 import { RootStackParamList } from '../navigation/types';
 import Fab from '../components/Fab';
 import RecordingOverlay from '../components/RecordingOverlay';
+import Wordmark from '../components/Wordmark';
 import { NAVY, ACCENT, MUTED, FAINT, PAPER, SURFACE, HAIRLINE, CARD_SHADOW } from '../tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -70,10 +71,7 @@ export default function HomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.wordmark}>
-          <Text style={styles.wordmarkSerif}>Book</Text>
-          <Text style={styles.wordmarkScript}>buddy</Text>
-        </Text>
+        <Wordmark />
         <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.menuButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.menuDots}>⋯</Text>
         </TouchableOpacity>
@@ -160,19 +158,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 14,
-  },
-  wordmark: {
-    letterSpacing: -0.4,
-  },
-  wordmarkSerif: {
-    fontFamily: 'Newsreader_600SemiBold',
-    fontSize: 28,
-    color: NAVY,
-  },
-  wordmarkScript: {
-    fontFamily: 'Newsreader_500Medium_Italic',
-    fontSize: 28,
-    color: ACCENT,
   },
   menuButton: {
     padding: 4,

@@ -1,5 +1,5 @@
 {
-  "name": "bookbuddy",
+  "name": "syntopico",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -19,6 +19,7 @@
     ]
   },
   "dependencies": {
+    "@expo-google-fonts/bellefair": "^0.4.1",
     "@expo-google-fonts/newsreader": "^0.4.1",
     "@react-navigation/native": "^7.2.2",
     "@react-navigation/native-stack": "^7.14.10",

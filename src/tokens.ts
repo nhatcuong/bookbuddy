@@ -1,4 +1,4 @@
-// Design tokens — BookBuddy navy/script-blue palette
+// Design tokens — Syntopico navy/script-blue palette
 export const NAVY      = '#1B2A4A';
 export const NAVY_SOFT = '#2A3D63';
 export const ACCENT    = '#7BA7C9';
