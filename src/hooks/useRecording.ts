@@ -12,6 +12,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Sentry from '@sentry/react-native';
 import { transcribeAudio, WhisperError } from '../services/whisper';
 import { extractBookInfo, extractNoteOnly, ExtractedNote, ExtractError } from '../services/extract';
+import { NoteBlock } from '../types/note';
 import { fetchBookMetadata, GoogleBooksError } from '../services/googleBooks';
 import { findMatchingBook } from '../services/matchBook';
 import { insertBook, insertReadingSession, getBooksByLastSession } from '../db/database';
@@ -68,8 +69,19 @@ export function useRecording(onComplete: (result: RecordingResult) => void, pinn
   async function processTranscript(transcript: string): Promise<RecordingResult | null> {
     if (pinnedBookId != null) {
       const pinnedBook = getBooksByLastSession().find(b => b.id === pinnedBookId) ?? null;
-      const { chapter, blocks } = await extractNoteOnly(transcript, pinnedBook?.title ?? '', pinnedBook?.author ?? null);
-      const sessionId = insertReadingSession(pinnedBookId, { title: '', author: null, chapter, blocks }, transcript);
+      let chapter: string | null = null;
+      let blocks: NoteBlock[] | null = null;
+      try {
+        const result = await extractNoteOnly(transcript, pinnedBook?.title ?? '', pinnedBook?.author ?? null);
+        chapter = result.chapter;
+        blocks = result.blocks;
+      } catch (err) {
+        // Extraction failed even after retry — fall back to a null note rather
+        // than losing the recording. raw_transcript (passed below) is preserved
+        // either way, and the session can be re-processed later from it.
+        Sentry.captureException(err);
+      }
+      const sessionId = insertReadingSession(pinnedBookId, { chapter, blocks }, transcript);
       return { bookId: pinnedBookId, sessionId };
     }
 

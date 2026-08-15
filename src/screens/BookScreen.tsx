@@ -15,14 +15,14 @@ import { getBookById, getSessionsByBookId, getBooksByLastSession, deleteBook, de
 import { exportBook } from '../services/bookBackup';
 import { useRecording } from '../hooks/useRecording';
 import { useVoiceCapture } from '../hooks/useVoiceCapture';
-import { extractBookInfo, amendNote } from '../services/extract';
+import { extractBookInfo, extractNoteOnly, amendNote } from '../services/extract';
 import { fetchBookMetadata } from '../services/googleBooks';
 import { findMatchingBook } from '../services/matchBook';
 import { RootStackParamList } from '../navigation/types';
 import NoteBlocksRenderer from '../components/NoteBlocksRenderer';
 import Fab from '../components/Fab';
 import RecordingOverlay from '../components/RecordingOverlay';
-import { NAVY, ACCENT, MUTED, FAINT, DESTRUCTIVE, PAPER, SURFACE, HAIRLINE, CARD_SHADOW } from '../tokens';
+import { NAVY, ACCENT, MUTED, FAINT, DESTRUCTIVE, BODY, PAPER, SURFACE, HAIRLINE, CARD_SHADOW } from '../tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Book'>;
 
@@ -35,6 +35,7 @@ export default function BookScreen({ navigation, route }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [wrongBookSessionId, setWrongBookSessionId] = useState<number | null>(null);
   const [amendSessionId, setAmendSessionId] = useState<number | null>(null);
+  const [reprocessingId, setReprocessingId] = useState<number | null>(null);
 
   function load() {
     setBook(getBookById(bookId));
@@ -126,13 +127,28 @@ export default function BookScreen({ navigation, route }: Props) {
 
   async function handleAmend(sessionId: number, transcript: string) {
     const session = sessions.find(s => s.id === sessionId);
-    if (!session) return;
+    if (!session?.note) return;
     try {
       const updatedBlocks = await amendNote(session.note, transcript, book?.title ?? '', book?.author ?? null);
       updateSessionNote(sessionId, updatedBlocks);
       load();
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Could not amend note.');
+    }
+  }
+
+  async function handleReprocess(sessionId: number) {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session?.rawTranscript) return;
+    setReprocessingId(sessionId);
+    try {
+      const { blocks } = await extractNoteOnly(session.rawTranscript, book?.title ?? '', book?.author ?? null);
+      updateSessionNote(sessionId, blocks);
+      load();
+    } catch (err: any) {
+      Alert.alert('Still failed', err.message ?? 'Could not process this note. Try again later.');
+    } finally {
+      setReprocessingId(null);
     }
   }
 
@@ -203,7 +219,20 @@ export default function BookScreen({ navigation, route }: Props) {
                   <Text style={styles.sessionDate}>{formatDate(session.sessionDate)}</Text>
                   {session.chapter && <Text style={styles.sessionChapter}>{session.chapter}</Text>}
                 </View>
-                <NoteBlocksRenderer blocks={session.note} collapsed={!isExpanded} />
+                {session.note === null ? (
+                  isExpanded ? (
+                    <View style={styles.fallbackContainer}>
+                      <Text style={styles.fallbackBanner}>Processing failed — showing raw transcript</Text>
+                      <Text style={styles.fallbackText}>{session.rawTranscript}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.fallbackBanner} numberOfLines={2}>
+                      Processing failed — showing raw transcript
+                    </Text>
+                  )
+                ) : (
+                  <NoteBlocksRenderer blocks={session.note} collapsed={!isExpanded} />
+                )}
                 {isExpanded && (
                   <View style={styles.sessionActions}>
                     <TouchableOpacity
@@ -216,15 +245,27 @@ export default function BookScreen({ navigation, route }: Props) {
                       </View>
                     </TouchableOpacity>
                     <View style={styles.sessionActionsRight}>
-                      <TouchableOpacity
-                        onPress={(e) => { e.stopPropagation(); setAmendSessionId(session.id); amendCapture.start(); }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <View style={styles.recordTrigger}>
-                          <Text style={styles.sessionAction}>Amend</Text>
-                          <View style={styles.recordDot} />
-                        </View>
-                      </TouchableOpacity>
+                      {session.note === null ? (
+                        <TouchableOpacity
+                          onPress={(e) => { e.stopPropagation(); handleReprocess(session.id); }}
+                          disabled={reprocessingId === session.id}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={styles.sessionAction}>
+                            {reprocessingId === session.id ? 'Re-processing…' : 'Re-process'}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={(e) => { e.stopPropagation(); setAmendSessionId(session.id); amendCapture.start(); }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <View style={styles.recordTrigger}>
+                            <Text style={styles.sessionAction}>Amend</Text>
+                            <View style={styles.recordDot} />
+                          </View>
+                        </TouchableOpacity>
+                      )}
                       <TouchableOpacity
                         onPress={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -444,6 +485,19 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: ACCENT,
     lineHeight: 18,
+  },
+  fallbackContainer: {
+    gap: 8,
+  },
+  fallbackBanner: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: DESTRUCTIVE,
+  },
+  fallbackText: {
+    fontSize: 15.5,
+    color: BODY,
+    lineHeight: 25,
   },
   sessionActions: {
     flexDirection: 'row',

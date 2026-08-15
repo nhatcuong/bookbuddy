@@ -23,7 +23,7 @@ export type BookBackup = {
     pageCount: number | null;
   };
   sessions: {
-    note: NoteBlock[];
+    note: NoteBlock[] | null;
     chapter: string | null;
     rawTranscript: string | null;
     sessionDate: string;

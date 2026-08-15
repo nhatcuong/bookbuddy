@@ -1,5 +1,34 @@
 # Build Log
 
+## Session 15 — 2026-08-15
+
+### What we did
+- **Fixed note-corruption crash** — a book became permanently unopenable after recording a long (~3min), quote-heavy second session
+  - Root cause: `extractNoteOnly` (used when adding a session to an already-open book) capped `max_tokens: 512`, tighter than its siblings (1024) with no real justification. A long transcript could truncate Claude's structured JSON response mid-generation.
+  - `getSessionsByBookId` (`database.ts`) did unguarded `JSON.parse(row.note)` inside a `.map()` — one corrupted row threw and took down the entire book's session list, every time that book was opened, while other books loaded fine.
+- **`extract.ts` rewrite** — shared `callClaudeTool`/`callClaudeToolWithRetry` helper used by all three extraction functions (`extractNoteOnly`, `extractBookInfo`, `amendNote`):
+  - `max_tokens` now sized dynamically from input length (`clamp(inputTokens * 1.4 + 300, 512, 4096)`) instead of a flat guess
+  - Explicitly checks `stop_reason === 'max_tokens'` — a truncated response is never trusted even if structurally valid, since it may be missing content that didn't fit
+  - One retry at a fixed generous budget (4096) if the first attempt truncates; still-truncated after retry throws `ExtractError` rather than persisting incomplete data
+  - `assertBlocks()` validates the response actually contains a `blocks` array before returning — guards against `JSON.stringify(undefined)` (`"undefined"`, invalid JSON) ever reaching the database
+- **Crash-safe fallback instead of data loss** — `note` is now `NoteBlock[] | null` throughout (`database.ts`, `bookBackup.ts`)
+  - `getSessionsByBookId` catches parse failures (or non-array JSON) and returns `note: null` for that session instead of throwing — unblocks the whole book immediately, including your already-corrupted row
+  - `useRecording.ts`'s pinned-book path catches extraction failure and saves the session with `blocks: null` (raw transcript untouched) instead of losing the recording or corrupting the column
+  - `BookScreen.tsx`: sessions with `note === null` render a "Processing failed — showing raw transcript" fallback (plain `raw_transcript` text) instead of `NoteBlocksRenderer`, with a **Re-process** action (re-runs `extractNoteOnly` on the stored transcript, calls `updateSessionNote` on success) replacing Amend for that session
+  - Added 5 new tests locking in the fix: truncation retry, still-truncated-after-retry throws, missing-blocks validation, and the pinned-book extraction-failure fallback
+
+### Decisions made
+- Dynamic `max_tokens` sizing (not a flat large constant) — a fixed high ceiling removes the cheap circuit-breaker against degenerate/looping generation; sizing from input keeps short notes cheap and fast while still covering long ones
+- No hard cap on recording length — would cut against the app's zero-friction principle; better to let the backend absorb variability
+- Graceful fallback (raw transcript + manual re-process) scoped to the pinned-book path only, matching the actual bug and the UI built for it — `extractBookInfo`'s new-book path already had this class of robustness improved (dynamic sizing/retry) but total-failure-after-retry there still surfaces as a lost recording via the existing top-level error alert, same as before this fix
+- Adopted a strict linear-branch workflow going forward (chain, not star) — always branch fresh off up-to-date `main`, merge before starting the next branch, since solo work has no reason to keep parallel long-lived branches open
+
+### Next session
+- Deploy to phone via EAS build/submit, confirm the previously-crashing book opens and Re-process recovers it
+- Consider extending the same graceful-fallback treatment to the new-book (`extractBookInfo`) path if total extraction failure there proves to be a real annoyance in practice
+
+---
+
 ## Session 14 — 2026-08-05
 
 ### What we did

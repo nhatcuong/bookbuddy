@@ -49,7 +49,7 @@ export function insertBook(metadata: BookMetadata | null, extracted: ExtractedNo
 
 export function insertReadingSession(
   bookId: number,
-  extracted: ExtractedNote,
+  extracted: { chapter: string | null; blocks: NoteBlock[] | null },
   transcript: string,
 ): number {
   const result = db.runSync(
@@ -81,7 +81,7 @@ export type SessionRow = {
   bookId: number;
   chapter: string | null;
   rawTranscript: string | null;
-  note: NoteBlock[];
+  note: NoteBlock[] | null;
   sessionDate: string;
 };
 
@@ -119,7 +119,7 @@ export function getBookById(id: number): BookRow | null {
 
 export function insertReadingSessionRaw(
   bookId: number,
-  session: { note: NoteBlock[]; chapter: string | null; rawTranscript: string | null; sessionDate: string }
+  session: { note: NoteBlock[] | null; chapter: string | null; rawTranscript: string | null; sessionDate: string }
 ): void {
   db.runSync(
     `INSERT INTO reading_sessions (book_id, chapter, raw_transcript, note, session_date)
@@ -149,8 +149,22 @@ export function deleteBook(bookId: number): void {
   db.runSync(`DELETE FROM books WHERE id = ?`, bookId);
 }
 
+// A corrupted or malformed note column (invalid JSON, or valid JSON that
+// isn't an array) must never take down the whole book screen — one bad
+// session degrades to a null note (rendered as a raw-transcript fallback)
+// rather than throwing and blocking every other session from loading.
+function parseNote(raw: string | null): NoteBlock[] | null {
+  if (raw == null) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as NoteBlock[]) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getSessionsByBookId(bookId: number): SessionRow[] {
-  const rows = db.getAllSync<Omit<SessionRow, 'note'> & { note: string }>(
+  const rows = db.getAllSync<Omit<SessionRow, 'note'> & { note: string | null }>(
     `SELECT id, book_id AS bookId, chapter,
             raw_transcript AS rawTranscript,
             note, session_date AS sessionDate
@@ -159,7 +173,7 @@ export function getSessionsByBookId(bookId: number): SessionRow[] {
      ORDER BY session_date DESC`,
     bookId
   );
-  return rows.map(row => ({ ...row, note: JSON.parse(row.note) as NoteBlock[] }));
+  return rows.map(row => ({ ...row, note: parseNote(row.note) }));
 }
 
 export default db;
