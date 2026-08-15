@@ -49,6 +49,14 @@
   - New logo (serif "S" + accent-blue dot, same palette) rasterized into `icon.png`, `splash-icon.png`, `android-icon-foreground.png`, `favicon.png` via `rsvg-convert` (installed, wasn't present locally)
   - Renamed in `app.config.js` (display name, slug, mic permission string), `package.json`, `tokens.ts` comment, in-app title (`VoiceCaptureScreen.tsx`), `CLAUDE.md`, `flows.md`
   - Bundle identifier switched `com.nnc.bookbuddy` → `com.nnc.syntopico` (see decisions)
+- **Custom Syntopico wordmark** — new `src/components/Wordmark.tsx`: "Synt" + an accent-blue circle standing in for the middle "o" + "pico", set in Bellefair (`@expo-google-fonts/bellefair`, newly installed), single charcoal (`BODY`) color — replaced the old two-tone "Book"/"buddy" Newsreader treatment on both `HomeScreen` and the unreachable `VoiceCaptureScreen`. Dot size/position tuned by eye across several rounds on device.
+- **Fixed splash screen color seam** — `splash.backgroundColor` was pure white (`#ffffff`) while `splash-icon.png` has the `SURFACE` cream (`#FCFAF4`) baked into its background, producing a visible square seam on launch since `resizeMode: 'contain'` doesn't crop to fill. Matched the two colors.
+- **First successful EAS build + submit** to the new `com.nnc.syntopico` App Store Connect record
+  - Non-interactive `eas submit` failed without a saved `ascAppId` — added it to `eas.json`'s submit profile
+  - Added `ITSAppUsesNonExemptEncryption: false` so App Store Connect stops asking the Export Compliance question manually on every future submission
+  - Hit and fixed an EAS slug mismatch: `extra.eas.projectId` was registered under slug `bookbuddy` on expo.dev; reverted the local `slug` back to match rather than renaming the remote project
+- **Repo cleanup** — GitHub repo renamed `bookbuddy` → `syntopico` (auto-redirects), removed the stale unused `app.json` (superseded by `app.config.js`, had drifted out of sync), synced `package-lock.json`'s root name
+- **Merged the star-shaped PRs** — noticed PR #16 (direct-record triggers) and PR #17 (rename/EAS/wordmark) had both forked from the same old `main` commit, and that features already built — the direct Amend/Wrong-Book triggers, the blue-dot mic indicators — weren't actually live in the app despite being "done." Merged #16 first, then rebased #17 onto updated `main`, resolving conflicts in `build-log.md` (chronological reorder) and `HomeScreen.tsx` (merged cleanly — both feature sets coexist correctly, verified by typecheck + full test suite)
 
 ### Decisions made
 - Bundle identifier: chose to switch to `com.nnc.syntopico` rather than keep `com.nnc.bookbuddy` — fully consistent branding, accepted the cost (new Apple App ID, new App Store Connect app record, redo TestFlight setup, local data doesn't carry over automatically)
@@ -56,12 +64,17 @@
 - `android-icon-background.png`/`android-icon-monochrome.png` left as Expo's unmodified scaffold defaults — never customized even under the BookBuddy brand, out of scope here
 - Stale unused `app.json` (superseded by `app.config.js`, config drifted out of sync) left in place, flagged for a future cleanup pass
 - TestFlight builds expire 90 days after processing — separate, much less painful cadence than the old 7-day free-signing cycle; full App Store release is the only way to remove renewal entirely
+- EAS project slug stays `bookbuddy` (doesn't match the app's `syntopico` display name) — it's an internal expo.dev identifier only, renaming the remote project isn't worth the hassle for something invisible to users
 
 ### Next session
-- Run `eas build --platform ios --profile production` under the new `com.nnc.syntopico` bundle id (registers a new Apple App ID)
-- `eas submit` to create the new Syntopico App Store Connect app record (may hit the same "name taken" auto-rename as before)
 - Export each book via `bookBackup.ts`'s `exportBook` from the old `com.nnc.bookbuddy` install, re-import into the new app after install
-- Redo TestFlight internal tester setup for the new app record
+- Daily-use the renamed app on device — this is what surfaced the note-corruption crash fixed in Session 15
+
+### Not vibe
+- Chose to switch the bundle identifier to `com.nnc.syntopico` over Claude's recommendation to keep `com.nnc.bookbuddy` — consciously accepted the real cost (new Apple App ID, fresh App Store Connect record, redo TestFlight setup, no automatic data carryover) for full branding consistency.
+- Specified the wordmark redesign precisely and unprompted — Bellefair, not Newsreader; single charcoal text color; the middle "o" replaced by a blue dot matching the logo mark — then iterated the exact size/position values by eye across several rounds rather than accepting the first guess.
+- Caught the splash-screen color seam through actual use ("I see a square background... is it possible or am I imagining things?") — real dogfooding, not something Claude flagged first.
+- Noticed PR #16 and #17 had forked from the same old commit and that features already "done" (direct Amend trigger, blue-dot indicators) weren't actually live in the app — caught a real gap between merged-in-theory and shipped-in-practice, not just trusting that open PRs meant the work was delivered.
 
 ---
 
