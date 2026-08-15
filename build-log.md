@@ -27,6 +27,12 @@
 - Deploy to phone via EAS build/submit, confirm the previously-crashing book opens and Re-process recovers it
 - Consider extending the same graceful-fallback treatment to the new-book (`extractBookInfo`) path if total extraction failure there proves to be a real annoyance in practice
 
+### Not vibe
+- Rejected the first fix I proposed (flat retry-with-bigger-budget-on-truncation) and asked why `max_tokens` isn't just sized off the actual transcript length instead — this became the primary mechanism (dynamic sizing), with retry demoted to a secondary safety net for when the estimate undershoots. Better design than what was initially proposed.
+- Pushed on "what's the downside of setting max_tokens extremely high" before accepting any fix — forced the actual tradeoff (removes a cheap circuit-breaker against runaway/degenerate generation) to be articulated rather than just taking "raise the limit" at face value.
+- Specified the recovery UX directly: "processing failed, so this is raw transcript" + a re-process button — a concrete product decision for how a degraded state should look and behave, not something I initiated.
+- Set the branching policy (linear chain, not star, merge before starting next) as explicit engineering process for solo work, and separately asked whether true stacked-PRs (base on an unmerged branch) were possible before deciding the simpler discipline was the better fit here.
+
 ---
 
 ## Session 14 — 2026-08-05
