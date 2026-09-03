@@ -21,10 +21,11 @@ import { extractNoteOnly, extractBookInfo, ExtractError } from '../extract';
  * Builds a minimal Claude /v1/messages response that looks like a successful
  * tool_use call. `input` is what Claude "returned" as the structured output.
  */
-function makeClaudeResponse(input: Record<string, unknown>): Response {
+function makeClaudeResponse(input: Record<string, unknown>, stopReason = 'tool_use'): Response {
   return {
     ok: true,
     json: async () => ({
+      stop_reason: stopReason,
       content: [
         {
           type: 'tool_use',
@@ -32,6 +33,20 @@ function makeClaudeResponse(input: Record<string, unknown>): Response {
           input,
         },
       ],
+    }),
+  } as unknown as Response;
+}
+
+/**
+ * Simulates a response cut off before any tool_use block was emitted at all —
+ * the most severe truncation case.
+ */
+function makeTruncatedNoToolResponse(): Response {
+  return {
+    ok: true,
+    json: async () => ({
+      stop_reason: 'max_tokens',
+      content: [{ type: 'text', text: '{"chapter": null, "blocks": [' }],
     }),
   } as unknown as Response;
 }
@@ -173,6 +188,65 @@ describe('extractNoteOnly', () => {
     expect(result.blocks).toHaveLength(2);
     expect(result.blocks[0]).toEqual({ type: 'thought', text: 'There was a great line in this chapter.', location: null });
     expect(result.blocks[1]).toEqual({ type: 'quote', text: 'The value of a man resides in what he gives.', location: 'page 42' });
+  });
+
+  /**
+   * Regression test for the bug where a long, quote-heavy note got cut off by
+   * a fixed max_tokens ceiling, producing corrupted data. If the first attempt
+   * comes back truncated (stop_reason: 'max_tokens'), extractNoteOnly must
+   * retry once with a larger budget rather than trusting the incomplete output.
+   */
+  it('retries with a larger budget when the first attempt is truncated', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(makeTruncatedNoToolResponse())
+      .mockResolvedValueOnce(
+        makeClaudeResponse({
+          chapter: null,
+          blocks: [
+            { type: 'quote', text: 'A long quote that needed more room to generate.', location: 'page 100' },
+          ],
+        })
+      );
+
+    const result = await extractNoteOnly('A very long transcript with several quotes.', 'Test Book', 'Test Author');
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(result.blocks).toEqual([
+      { type: 'quote', text: 'A long quote that needed more room to generate.', location: 'page 100' },
+    ]);
+  });
+
+  /**
+   * If the response is STILL truncated even after the retry, extractNoteOnly
+   * must throw rather than persist incomplete/corrupted blocks — this is what
+   * lets the caller fall back to a null note (raw transcript shown instead)
+   * instead of writing bad data to the database.
+   */
+  it('throws ExtractError if still truncated after the retry', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(makeTruncatedNoToolResponse())
+      .mockResolvedValueOnce(makeTruncatedNoToolResponse());
+
+    await expect(
+      extractNoteOnly('An extremely long transcript.', 'Test Book', 'Test Author')
+    ).rejects.toThrow(ExtractError);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Defends against a malformed-but-structurally-present response — e.g.
+   * Claude's tool call input is missing `blocks` entirely. Must throw rather
+   * than let `undefined` flow through to JSON.stringify(undefined), which
+   * would write invalid data to the database.
+   */
+  it('throws ExtractError when blocks is missing from the response', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      makeClaudeResponse({ chapter: null })
+    );
+
+    await expect(
+      extractNoteOnly('Some transcript.', 'Test Book', 'Test Author')
+    ).rejects.toThrow(ExtractError);
   });
 });
 

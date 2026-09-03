@@ -1,5 +1,40 @@
 # Build Log
 
+## Session 15 — 2026-08-15
+
+### What we did
+- **Fixed note-corruption crash** — a book became permanently unopenable after recording a long (~3min), quote-heavy second session
+  - Root cause: `extractNoteOnly` (used when adding a session to an already-open book) capped `max_tokens: 512`, tighter than its siblings (1024) with no real justification. A long transcript could truncate Claude's structured JSON response mid-generation.
+  - `getSessionsByBookId` (`database.ts`) did unguarded `JSON.parse(row.note)` inside a `.map()` — one corrupted row threw and took down the entire book's session list, every time that book was opened, while other books loaded fine.
+- **`extract.ts` rewrite** — shared `callClaudeTool`/`callClaudeToolWithRetry` helper used by all three extraction functions (`extractNoteOnly`, `extractBookInfo`, `amendNote`):
+  - `max_tokens` now sized dynamically from input length (`clamp(inputTokens * 1.4 + 300, 512, 4096)`) instead of a flat guess
+  - Explicitly checks `stop_reason === 'max_tokens'` — a truncated response is never trusted even if structurally valid, since it may be missing content that didn't fit
+  - One retry at a fixed generous budget (4096) if the first attempt truncates; still-truncated after retry throws `ExtractError` rather than persisting incomplete data
+  - `assertBlocks()` validates the response actually contains a `blocks` array before returning — guards against `JSON.stringify(undefined)` (`"undefined"`, invalid JSON) ever reaching the database
+- **Crash-safe fallback instead of data loss** — `note` is now `NoteBlock[] | null` throughout (`database.ts`, `bookBackup.ts`)
+  - `getSessionsByBookId` catches parse failures (or non-array JSON) and returns `note: null` for that session instead of throwing — unblocks the whole book immediately, including your already-corrupted row
+  - `useRecording.ts`'s pinned-book path catches extraction failure and saves the session with `blocks: null` (raw transcript untouched) instead of losing the recording or corrupting the column
+  - `BookScreen.tsx`: sessions with `note === null` render a "Processing failed — showing raw transcript" fallback (plain `raw_transcript` text) instead of `NoteBlocksRenderer`, with a **Re-process** action (re-runs `extractNoteOnly` on the stored transcript, calls `updateSessionNote` on success) replacing Amend for that session
+  - Added 5 new tests locking in the fix: truncation retry, still-truncated-after-retry throws, missing-blocks validation, and the pinned-book extraction-failure fallback
+
+### Decisions made
+- Dynamic `max_tokens` sizing (not a flat large constant) — a fixed high ceiling removes the cheap circuit-breaker against degenerate/looping generation; sizing from input keeps short notes cheap and fast while still covering long ones
+- No hard cap on recording length — would cut against the app's zero-friction principle; better to let the backend absorb variability
+- Graceful fallback (raw transcript + manual re-process) scoped to the pinned-book path only, matching the actual bug and the UI built for it — `extractBookInfo`'s new-book path already had this class of robustness improved (dynamic sizing/retry) but total-failure-after-retry there still surfaces as a lost recording via the existing top-level error alert, same as before this fix
+- Adopted a strict linear-branch workflow going forward (chain, not star) — always branch fresh off up-to-date `main`, merge before starting the next branch, since solo work has no reason to keep parallel long-lived branches open
+
+### Next session
+- Deploy to phone via EAS build/submit, confirm the previously-crashing book opens and Re-process recovers it
+- Consider extending the same graceful-fallback treatment to the new-book (`extractBookInfo`) path if total extraction failure there proves to be a real annoyance in practice
+
+### Not vibe
+- Rejected the first fix Claude proposed (flat retry-with-bigger-budget-on-truncation) and asked why `max_tokens` isn't just sized off the actual transcript length instead — this became the primary mechanism (dynamic sizing), with retry demoted to a secondary safety net for when the estimate undershoots. Better design than what was initially proposed.
+- Pushed on "what's the downside of setting max_tokens extremely high" before accepting any fix — forced the actual tradeoff (removes a cheap circuit-breaker against runaway/degenerate generation) to be articulated rather than just taking "raise the limit" at face value.
+- Specified the recovery UX directly: "processing failed, so this is raw transcript" + a re-process button — a concrete product decision for how a degraded state should look and behave, not something Claude initiated.
+- Set the branching policy (linear chain, not star, merge before starting next) as explicit engineering process for solo work, and separately asked whether true stacked-PRs (base on an unmerged branch) were possible before deciding the simpler discipline was the better fit here.
+
+---
+
 ## Session 14 — 2026-08-05
 
 ### What we did
@@ -14,6 +49,14 @@
   - New logo (serif "S" + accent-blue dot, same palette) rasterized into `icon.png`, `splash-icon.png`, `android-icon-foreground.png`, `favicon.png` via `rsvg-convert` (installed, wasn't present locally)
   - Renamed in `app.config.js` (display name, slug, mic permission string), `package.json`, `tokens.ts` comment, in-app title (`VoiceCaptureScreen.tsx`), `CLAUDE.md`, `flows.md`
   - Bundle identifier switched `com.nnc.bookbuddy` → `com.nnc.syntopico` (see decisions)
+- **Custom Syntopico wordmark** — new `src/components/Wordmark.tsx`: "Synt" + an accent-blue circle standing in for the middle "o" + "pico", set in Bellefair (`@expo-google-fonts/bellefair`, newly installed), single charcoal (`BODY`) color — replaced the old two-tone "Book"/"buddy" Newsreader treatment on both `HomeScreen` and the unreachable `VoiceCaptureScreen`. Dot size/position tuned by eye across several rounds on device.
+- **Fixed splash screen color seam** — `splash.backgroundColor` was pure white (`#ffffff`) while `splash-icon.png` has the `SURFACE` cream (`#FCFAF4`) baked into its background, producing a visible square seam on launch since `resizeMode: 'contain'` doesn't crop to fill. Matched the two colors.
+- **First successful EAS build + submit** to the new `com.nnc.syntopico` App Store Connect record
+  - Non-interactive `eas submit` failed without a saved `ascAppId` — added it to `eas.json`'s submit profile
+  - Added `ITSAppUsesNonExemptEncryption: false` so App Store Connect stops asking the Export Compliance question manually on every future submission
+  - Hit and fixed an EAS slug mismatch: `extra.eas.projectId` was registered under slug `bookbuddy` on expo.dev; reverted the local `slug` back to match rather than renaming the remote project
+- **Repo cleanup** — GitHub repo renamed `bookbuddy` → `syntopico` (auto-redirects), removed the stale unused `app.json` (superseded by `app.config.js`, had drifted out of sync), synced `package-lock.json`'s root name
+- **Merged the star-shaped PRs** — noticed PR #16 (direct-record triggers) and PR #17 (rename/EAS/wordmark) had both forked from the same old `main` commit, and that features already built — the direct Amend/Wrong-Book triggers, the blue-dot mic indicators — weren't actually live in the app despite being "done." Merged #16 first, then rebased #17 onto updated `main`, resolving conflicts in `build-log.md` (chronological reorder) and `HomeScreen.tsx` (merged cleanly — both feature sets coexist correctly, verified by typecheck + full test suite)
 
 ### Decisions made
 - Bundle identifier: chose to switch to `com.nnc.syntopico` rather than keep `com.nnc.bookbuddy` — fully consistent branding, accepted the cost (new Apple App ID, new App Store Connect app record, redo TestFlight setup, local data doesn't carry over automatically)
@@ -21,12 +64,17 @@
 - `android-icon-background.png`/`android-icon-monochrome.png` left as Expo's unmodified scaffold defaults — never customized even under the BookBuddy brand, out of scope here
 - Stale unused `app.json` (superseded by `app.config.js`, config drifted out of sync) left in place, flagged for a future cleanup pass
 - TestFlight builds expire 90 days after processing — separate, much less painful cadence than the old 7-day free-signing cycle; full App Store release is the only way to remove renewal entirely
+- EAS project slug stays `bookbuddy` (doesn't match the app's `syntopico` display name) — it's an internal expo.dev identifier only, renaming the remote project isn't worth the hassle for something invisible to users
 
 ### Next session
-- Run `eas build --platform ios --profile production` under the new `com.nnc.syntopico` bundle id (registers a new Apple App ID)
-- `eas submit` to create the new Syntopico App Store Connect app record (may hit the same "name taken" auto-rename as before)
 - Export each book via `bookBackup.ts`'s `exportBook` from the old `com.nnc.bookbuddy` install, re-import into the new app after install
-- Redo TestFlight internal tester setup for the new app record
+- Daily-use the renamed app on device — this is what surfaced the note-corruption crash fixed in Session 15
+
+### Not vibe
+- Chose to switch the bundle identifier to `com.nnc.syntopico` over Claude's recommendation to keep `com.nnc.bookbuddy` — consciously accepted the real cost (new Apple App ID, fresh App Store Connect record, redo TestFlight setup, no automatic data carryover) for full branding consistency.
+- Specified the wordmark redesign precisely and unprompted — Bellefair, not Newsreader; single charcoal text color; the middle "o" replaced by a blue dot matching the logo mark — then iterated the exact size/position values by eye across several rounds rather than accepting the first guess.
+- Caught the splash-screen color seam through actual use ("I see a square background... is it possible or am I imagining things?") — real dogfooding, not something Claude flagged first.
+- Noticed PR #16 and #17 had forked from the same old commit and that features already "done" (direct Amend trigger, blue-dot indicators) weren't actually live in the app — caught a real gap between merged-in-theory and shipped-in-practice, not just trusting that open PRs meant the work was delivered.
 
 ---
 

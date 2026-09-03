@@ -151,7 +151,7 @@ jest.mock('../../db/database', () => ({
 // ---------------------------------------------------------------------------
 
 import { getBooksByLastSession, insertReadingSession } from '../../db/database';
-import { extractBookInfo } from '../../services/extract';
+import { extractBookInfo, extractNoteOnly, ExtractError } from '../../services/extract';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -307,6 +307,72 @@ describe('useRecording — null title fallback', () => {
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({ bookId: existingBook.id })
     );
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+});
+
+describe('useRecording — pinned book (existing book) flow', () => {
+  const pinnedBook = {
+    id: 5,
+    title: 'Deep Work',
+    author: 'Cal Newport',
+    coverUrl: null,
+    isbn: null,
+    googleBooksId: null,
+    description: null,
+    pageCount: null,
+    createdAt: '2026-01-01T00:00:00Z',
+    lastSessionAt: '2026-01-02T00:00:00Z',
+  };
+
+  it('inserts the session normally when extraction succeeds', async () => {
+    (getBooksByLastSession as jest.Mock).mockReturnValue([pinnedBook]);
+
+    const onComplete = jest.fn();
+    const { result } = renderHook(() => useRecording(onComplete, 5));
+
+    await recordAndStop(result);
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ bookId: 5 }));
+    expect(insertReadingSession).toHaveBeenCalledWith(
+      5,
+      expect.objectContaining({ blocks: expect.any(Array) }),
+      expect.anything()
+    );
+  });
+
+  /**
+   * Regression test for the note-corruption crash: a session recorded against
+   * an existing book crashed every time that book was opened, because a
+   * truncated Claude response got JSON.stringify'd and stored anyway, then
+   * failed to JSON.parse back out.
+   *
+   * Now: if extraction fails (even after extract.ts's own internal retry),
+   * the session must still be saved — with a null note — instead of losing
+   * the recording or writing corrupted data. raw_transcript is preserved
+   * either way and can be re-processed later from the BookScreen UI.
+   */
+  it('still saves the session with a null note when extraction fails, instead of losing the recording', async () => {
+    (getBooksByLastSession as jest.Mock).mockReturnValue([pinnedBook]);
+    (extractNoteOnly as jest.Mock).mockRejectedValueOnce(
+      new ExtractError('Claude output was truncated even after retry')
+    );
+
+    const onComplete = jest.fn();
+    const { result } = renderHook(() => useRecording(onComplete, 5));
+
+    await recordAndStop(result);
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ bookId: 5 }));
+    expect(insertReadingSession).toHaveBeenCalledWith(
+      5,
+      expect.objectContaining({ blocks: null, chapter: null }),
+      expect.anything()
+    );
+
+    // The recording is preserved, not surfaced as a blocking error to the user
     expect(Alert.alert).not.toHaveBeenCalled();
   });
 });
