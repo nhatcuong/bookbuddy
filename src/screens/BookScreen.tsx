@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  Animated,
   TouchableOpacity,
   StyleSheet,
   Image,
@@ -26,6 +26,11 @@ import { NAVY, ACCENT, MUTED, FAINT, DESTRUCTIVE, BODY, PAPER, SURFACE, HAIRLINE
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Book'>;
 
+// Scroll distance over which the hero (cover + title) collapses into the
+// compact title that crossfades into the fixed nav row.
+const HERO_HEIGHT = 176;
+const COLLAPSE_RANGE = 130;
+
 export default function BookScreen({ navigation, route }: Props) {
   const { bookId, highlightSessionId } = route.params;
 
@@ -36,6 +41,23 @@ export default function BookScreen({ navigation, route }: Props) {
   const [wrongBookSessionId, setWrongBookSessionId] = useState<number | null>(null);
   const [amendSessionId, setAmendSessionId] = useState<number | null>(null);
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const heroHeight = scrollY.interpolate({
+    inputRange: [0, COLLAPSE_RANGE],
+    outputRange: [HERO_HEIGHT, 0],
+    extrapolate: 'clamp',
+  });
+  const heroOpacity = scrollY.interpolate({
+    inputRange: [0, COLLAPSE_RANGE * 0.6],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const compactTitleOpacity = scrollY.interpolate({
+    inputRange: [COLLAPSE_RANGE * 0.55, COLLAPSE_RANGE],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   function load() {
     setBook(getBookById(bookId));
@@ -176,13 +198,24 @@ export default function BookScreen({ navigation, route }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.backChevron}>‹</Text>
         </TouchableOpacity>
+        <Animated.View style={[styles.compactTitle, { opacity: compactTitleOpacity }]} pointerEvents="none">
+          {book?.coverUrl ? (
+            <Image source={{ uri: book.coverUrl }} style={styles.compactCover} resizeMode="cover" />
+          ) : (
+            <View style={styles.compactCoverPlaceholder} />
+          )}
+          <View style={styles.compactTextBlock}>
+            <Text style={styles.compactTitleText} numberOfLines={1}>{book?.title}</Text>
+            {book?.author && <Text style={styles.compactAuthorText} numberOfLines={1}>{book.author}</Text>}
+          </View>
+        </Animated.View>
         <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.menuDots}>⋯</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Book metadata */}
+      {/* Collapsing hero — cover + full metadata, shrinks away as the list scrolls */}
+      <Animated.View style={[styles.heroContainer, { height: heroHeight, opacity: heroOpacity }]}>
         {book && (
           <View style={styles.bookHeader}>
             {book.coverUrl ? (
@@ -198,7 +231,16 @@ export default function BookScreen({ navigation, route }: Props) {
             </View>
           </View>
         )}
+      </Animated.View>
 
+      <Animated.ScrollView
+        contentContainerStyle={styles.scroll}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
         <View style={styles.divider} />
 
         {/* Sessions */}
@@ -281,7 +323,7 @@ export default function BookScreen({ navigation, route }: Props) {
         )}
 
         <View style={{ height: 130 }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Recording overlay */}
       {showOverlay && (
@@ -369,6 +411,40 @@ const styles = StyleSheet.create({
     color: NAVY,
     letterSpacing: 1,
   },
+  compactTitle: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 8,
+  },
+  compactCover: {
+    width: 24,
+    height: 34,
+    borderRadius: 3,
+    backgroundColor: '#C8BFAF',
+  },
+  compactCoverPlaceholder: {
+    width: 24,
+    height: 34,
+    borderRadius: 3,
+    backgroundColor: '#C8BFAF',
+  },
+  compactTextBlock: {
+    flexShrink: 1,
+  },
+  compactTitleText: {
+    fontFamily: 'Newsreader_600SemiBold',
+    fontSize: 14,
+    color: NAVY,
+    lineHeight: 16,
+  },
+  compactAuthorText: {
+    fontSize: 11,
+    color: MUTED,
+    lineHeight: 13,
+  },
   menuCard: {
     position: 'absolute',
     top: 56,
@@ -404,10 +480,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
+  heroContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+    overflow: 'hidden',
+  },
   bookHeader: {
     flexDirection: 'row',
     gap: 16,
-    marginBottom: 20,
   },
   cover: {
     width: 104,
