@@ -8,7 +8,7 @@
     "ios": "node node_modules/expo/bin/cli start --ios",
     "web": "node node_modules/expo/bin/cli start --web",
     "test": "jest",
-    "seed": "bash scripts/seed-dev-db.sh"
+    "seed": "python3 scripts/seed_dev_db.py"
   },
   "jest": {
     "preset": "jest-expo",

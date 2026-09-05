@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "book": {
+    "title": "Deep Work",
+    "author": "Cal Newport",
+    "coverUrl": "https://covers.openlibrary.org/b/isbn/9781455586691-L.jpg",
+    "isbn": "9781455586691",
+    "googleBooksId": null,
+    "description": null,
+    "pageCount": 296
+  },
+  "sessions": [
+    {
+      "note": [
+        { "type": "thought", "text": "The idea of deep work as a superpower in a distracted world resonates a lot.", "location": null }
+      ],
+      "chapter": "Chapter 1",
+      "rawTranscript": "Started reading Deep Work. The idea of deep work as a superpower in a distracted world resonates a lot.",
+      "sessionDate": "2026-08-30 07:45:00"
+    },
+    {
+      "note": null,
+      "chapter": null,
+      "rawTranscript": "This one is a longer note meant to simulate a processing failure so the raw transcript fallback and re-process button are visible for testing without needing a real corrupted note.",
+      "sessionDate": "2026-09-02 22:10:00"
+    }
+  ]
+}

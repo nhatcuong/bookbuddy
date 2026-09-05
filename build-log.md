@@ -1,5 +1,48 @@
 # Build Log
 
+## Session 16 — 2026-09-04
+
+### What we did
+- **Announcement blog post** — `blog-post-plan.md` (outline) and `blog-post-draft.md` (full draft), iterated headline/tagline/opening paragraph over many rounds
+  - Headline: "Capture your reading sparks." + subhead covering both quote and thought capture
+  - Opening paragraph grounded in real lived experience (flying thoughts, notebook awkward mid-commute, hard to retrieve later, unsatisfying to reread) rather than a generic invented story
+  - 4-step "How it works" walkthrough + a "Bonus" step showing the export → AI chatbot → published review workflow, linking the real Substack post on *Calm Parents, Happy Kids*
+  - Reviewed that Substack post directly: the personal parenting anecdote and the "fear vs. love" throughline read as genuine (came straight from captured notes); the "Key Takeaways" bullets and closing line read as generic AI-chatbot boilerplate
+- **TestFlight / App Store Connect**
+  - Wrote the Beta App Description — verified against actual code (`useRecording.ts`) that voice recordings persist locally rather than being deleted after transcription, so the description doesn't misstate data handling to Apple's reviewer
+  - Clarified App Store Connect dashboard links vs. the public `testflight.apple.com/join/...` link — the one pasted was a private dashboard URL, not shareable
+  - Found the actual public TestFlight link resolves but says "not accepting new testers" — likely Beta App Review still pending for the external testing group
+  - Wrote "What to Test," revised from an initial per-PR/changelog framing to a holistic first-time-tester framing after feedback that external testers have no prior build to diff against
+  - Picked "Beta Readers" as the external testing group name (double meaning: literal beta testers + real publishing-world term)
+- **Merged PR #18** (crash fix, previously unmerged) into `main`. Also uncovered and corrected a mistake: an initial `eas build:list` check used `tail -100`, which truncated the output and hid the most recent entries — this produced an incorrect claim that the crash fix hadn't shipped yet, and a redundant new build got started. Re-checking via `submit:list` (untruncated) showed the Aug 15 submission (commit `bdf6484`) already included the fix; the redundant build was not submitted.
+- **BookScreen collapsing header** (branch `bookscreen-collapsing-header`, not yet merged) — the big cover/title/metadata block now shrinks and fades as the session list scrolls, crossfading into a compact cover-thumbnail + title/author that merges into the fixed back/menu nav row, instead of the old behavior where the whole header just scrolled out of view
+  - Implemented with React Native's `Animated` API (scroll-tracked interpolation on height/opacity), no new dependencies
+- **Dev tooling**: `npm run seed` (`scripts/seed_dev_db.py`) seeds the simulator's local SQLite DB for fast UI iteration without hand-recording notes
+  - First pass used hand-typed synthetic data via a bash/sqlite3 heredoc — replaced after review: fabricated content was too thin, and hand-escaping real text (apostrophes, em-dashes) into SQL string literals is fragile
+  - Reworked around `scripts/seed-data/*.json` — real book exports in the exact shape the app's own Export feature produces (`BookBackup` in `bookBackup.ts`), so any future real export can just be dropped in and reseeded automatically. Seeded with a real 10-session export ("The Design of Everyday Things") plus a small synthetic "Deep Work" (2 sessions, one deliberately null-note to preview the crash-fix fallback UI on demand)
+  - Rewrote the seeding logic itself in Python using parameterized `sqlite3` queries instead of shell string-building — avoids hand-escaping entirely, verified round-tripping real text with quotes/apostrophes/em-dashes correctly against a throwaway test database before wiring it to the actual simulator path
+
+### Decisions made
+- Blog post scope: ship the simple announcement now (walkthrough + screenshots + TestFlight CTA); defer the deeper "how it's built" / engineering-war-story post (note-corruption crash) to a separate follow-up once there's real testing behind it
+- Export-to-AI-chatbot-review kept as an un-numbered "Bonus," not step 5 of the core loop — it's occasional/advanced, not something that happens every use
+- BookScreen header collapses into one merged nav row (title crossfades into the back/menu row) rather than two stacked rows — matches Apple Music/Spotify/iOS-native large-title-collapse convention, and reclaims vertical space
+
+### Next session
+- Test the collapsing header on device/simulator (seed data first via `npm run seed`), open a PR once verified
+- Check Beta App Review status in App Store Connect for the external testing group — the public link isn't live yet
+- Fill remaining blog draft placeholders: TestFlight link (once public link works) and 4 screenshots
+- `blog-post-plan.md`/`blog-post-draft.md` are still untracked locally, not committed anywhere — decide if/where they should live in git
+
+### Not vibe
+- Caught two real phrasing inaccuracies in the blog draft Claude missed: "finish reading" implied finishing the whole book, not a session; "put the book down" excluded capturing quotes with the book still open
+- Rejected Claude's generic "I used to type into my phone" origin story outright and supplied the real, specific version instead (flying thoughts, notebook mid-commute, hard-to-retrieve pages, unsatisfying to reread) — genuinely truer and better content than what was drafted
+- Pushed back twice on Claude's claim that the crash fix hadn't shipped yet ("I think my latest build already has this" / "I think my prev submit already includes the crash fix") — Claude's first check was wrong due to a truncated command output; the user's own memory of what had actually been built was correct, and that persistence is what caught the error before an unnecessary duplicate build went out
+- Asked "what do other apps usually do?" before accepting Claude's first suggestion (two stacked header rows) — that question directly produced the better, more idiomatic answer (one merged row), reversing Claude's own initial default
+- Requested "What to Test" be reframed around a first-time external tester's actual experience, not a per-build changelog Claude had drafted by default
+- Rejected Claude's first seed-data attempt as "not good enough" and supplied a real 10-session export instead of letting fabricated placeholder content stand in for actual usage — directly led to redesigning the seed script around real export files rather than hand-typed data
+
+---
+
 ## Session 15 — 2026-08-15
 
 ### What we did
