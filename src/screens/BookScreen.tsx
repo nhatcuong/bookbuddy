@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, ElementRef } from 'react';
 import {
   View,
   Text,
   Animated,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Image,
@@ -41,7 +42,9 @@ export default function BookScreen({ navigation, route }: Props) {
   const [wrongBookSessionId, setWrongBookSessionId] = useState<number | null>(null);
   const [amendSessionId, setAmendSessionId] = useState<number | null>(null);
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const heroHeight = scrollY.interpolate({
     inputRange: [0, COLLAPSE_RANGE],
@@ -53,11 +56,29 @@ export default function BookScreen({ navigation, route }: Props) {
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
+  // Chevron and compact title crossfade over the same range, and hand off
+  // interactivity (below, via isCollapsed) at this same midpoint so there's
+  // never a gap or overlap in what's tappable.
+  const CROSSFADE_START = COLLAPSE_RANGE * 0.55;
+  const CROSSFADE_MIDPOINT = (CROSSFADE_START + COLLAPSE_RANGE) / 2;
   const compactTitleOpacity = scrollY.interpolate({
-    inputRange: [COLLAPSE_RANGE * 0.55, COLLAPSE_RANGE],
+    inputRange: [CROSSFADE_START, COLLAPSE_RANGE],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
+  const chevronOpacity = scrollY.interpolate({
+    inputRange: [CROSSFADE_START, COLLAPSE_RANGE],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  function handleScroll(event: { nativeEvent: { contentOffset: { y: number } } }) {
+    setIsCollapsed(event.nativeEvent.contentOffset.y >= CROSSFADE_MIDPOINT);
+  }
+
+  function expandHeader() {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  }
 
   function load() {
     setBook(getBookById(bookId));
@@ -195,20 +216,26 @@ export default function BookScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.backChevron}>‹</Text>
-        </TouchableOpacity>
-        <Animated.View style={[styles.compactTitle, { opacity: compactTitleOpacity }]} pointerEvents="none">
-          {book?.coverUrl ? (
-            <Image source={{ uri: book.coverUrl }} style={styles.compactCover} resizeMode="cover" />
-          ) : (
-            <View style={styles.compactCoverPlaceholder} />
-          )}
-          <View style={styles.compactTextBlock}>
-            <Text style={styles.compactTitleText} numberOfLines={1}>{book?.title}</Text>
-            {book?.author && <Text style={styles.compactAuthorText} numberOfLines={1}>{book.author}</Text>}
-          </View>
+        <Animated.View style={{ opacity: chevronOpacity }} pointerEvents={isCollapsed ? 'none' : 'auto'}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.backChevron}>‹</Text>
+          </TouchableOpacity>
         </Animated.View>
+        <View style={styles.compactTitleTouchable} pointerEvents={isCollapsed ? 'auto' : 'none'}>
+          <TouchableOpacity onPress={expandHeader} activeOpacity={0.7} style={styles.compactTitleTouchableInner}>
+            <Animated.View style={[styles.compactTitle, { opacity: compactTitleOpacity }]}>
+              {book?.coverUrl ? (
+                <Image source={{ uri: book.coverUrl }} style={styles.compactCover} resizeMode="cover" />
+              ) : (
+                <View style={styles.compactCoverPlaceholder} />
+              )}
+              <View style={styles.compactTextBlock}>
+                <Text style={styles.compactTitleText} numberOfLines={1}>{book?.title}</Text>
+                {book?.author && <Text style={styles.compactAuthorText} numberOfLines={1}>{book.author}</Text>}
+              </View>
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.menuDots}>⋯</Text>
         </TouchableOpacity>
@@ -234,10 +261,11 @@ export default function BookScreen({ navigation, route }: Props) {
       </Animated.View>
 
       <Animated.ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scroll}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
+          { useNativeDriver: false, listener: handleScroll }
         )}
         scrollEventThrottle={16}
       >
@@ -397,6 +425,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    position: 'relative',
   },
   navButton: {
     padding: 4,
@@ -411,13 +440,24 @@ const styles = StyleSheet.create({
     color: NAVY,
     letterSpacing: 1,
   },
-  compactTitle: {
+  // Absolutely positioned so the compact title can start flush with the
+  // true left edge once the chevron hides, rather than being boxed in by
+  // the chevron's own layout space.
+  compactTitleTouchable: {
+    position: 'absolute',
+    left: 0,
+    right: 44,
+    top: 0,
+    bottom: 0,
+  },
+  compactTitleTouchableInner: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  compactTitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 8,
   },
   compactCover: {
     width: 24,
@@ -436,14 +476,14 @@ const styles = StyleSheet.create({
   },
   compactTitleText: {
     fontFamily: 'Newsreader_600SemiBold',
-    fontSize: 14,
+    fontSize: 15.5,
     color: NAVY,
-    lineHeight: 16,
+    lineHeight: 19,
   },
   compactAuthorText: {
-    fontSize: 11,
+    fontSize: 12,
     color: MUTED,
-    lineHeight: 13,
+    lineHeight: 15,
   },
   menuCard: {
     position: 'absolute',
