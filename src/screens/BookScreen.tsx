@@ -9,7 +9,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getBookById, getSessionsByBookId, getBooksByLastSession, deleteBook, deleteSession, reassignSession, updateSessionNote, insertBook, BookRow, SessionRow } from '../db/database';
@@ -32,12 +32,20 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Book'>;
 const HERO_HEIGHT = 176;
 const COLLAPSE_RANGE = 130;
 
-// The fixed nav row's height is DERIVED from the compact cover's size, not
-// an independently-chosen number — it must always be exactly big enough to
-// fit the cover plus top/bottom padding. Picking these separately (as an
-// earlier version of this file did) lets the row height and cover size
-// silently drift out of sync any time either one changes. Top/bottom are
-// intentionally asymmetric (more room below than above).
+// Height of the nav row at rest — just the chevron/menu, no compact cover.
+const HEADER_REST_HEIGHT = 56;
+
+// The nav row's height when collapsed is DERIVED from the compact cover's
+// size, not an independently-chosen number — it must always be exactly big
+// enough to fit the cover plus top/bottom padding. Picking these separately
+// (as an earlier version of this file did) lets the row height and cover
+// size silently drift out of sync any time either one changes. Top/bottom
+// are intentionally asymmetric (more room below than above). The row's
+// height animates between HEADER_REST_HEIGHT and this value (below) rather
+// than being a second, disconnected fixed height — a static compact-sized
+// height would stay that size even at rest, and a separate overlay with
+// its own narrower width leaves an uncovered gap where scrolled content
+// shows through. One animated, always-opaque, full-width row avoids both.
 const COMPACT_COVER_WIDTH = 58;
 const COMPACT_COVER_HEIGHT = 84;
 const COMPACT_HEADER_PADDING_TOP = 3;
@@ -47,7 +55,6 @@ const COMPACT_HEADER_HEIGHT =
 
 export default function BookScreen({ navigation, route }: Props) {
   const { bookId, highlightSessionId } = route.params;
-  const insets = useSafeAreaInsets();
 
   const [book, setBook] = useState<BookRow | null>(null);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
@@ -63,6 +70,11 @@ export default function BookScreen({ navigation, route }: Props) {
   const heroHeight = scrollY.interpolate({
     inputRange: [0, COLLAPSE_RANGE],
     outputRange: [HERO_HEIGHT, 0],
+    extrapolate: 'clamp',
+  });
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, COLLAPSE_RANGE],
+    outputRange: [HEADER_REST_HEIGHT, COMPACT_HEADER_HEIGHT],
     extrapolate: 'clamp',
   });
   const heroOpacity = scrollY.interpolate({
@@ -228,38 +240,43 @@ export default function BookScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header — a slim, constant-height nav row. It never grows: the
-          compact title below is a separate overlay so a bigger cover there
-          doesn't force this row to be tall even when it's invisible. */}
-      <View style={styles.headerRow}>
+      {/* Header — one animated, always-opaque, full-width row. Its height
+          animates from HEADER_REST_HEIGHT (just chevron/menu) up to
+          COMPACT_HEADER_HEIGHT (room for the compact cover) as the list
+          scrolls. Using one element for this — rather than a fixed-height
+          row plus a separately-sized overlay — means there's no seam where
+          the two could have different widths/heights and leave a gap for
+          scrolled content to show through. */}
+      <Animated.View style={[styles.headerRow, { height: headerHeight }]}>
         <Animated.View style={{ opacity: chevronOpacity }} pointerEvents={isCollapsed ? 'none' : 'auto'}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.backChevron}>‹</Text>
           </TouchableOpacity>
         </Animated.View>
+
+        {/* Compact title — invisible (opacity 0, pointerEvents none) until
+            scrolled past the collapse point, so it never affects the
+            expanded/at-rest layout even though its box is always present. */}
+        <View style={styles.compactTitleTouchable} pointerEvents={isCollapsed ? 'auto' : 'none'}>
+          <TouchableOpacity onPress={expandHeader} activeOpacity={0.7} style={styles.compactTitleTouchableInner}>
+            <Animated.View style={[styles.compactTitle, { opacity: compactTitleOpacity }]}>
+              {book?.coverUrl ? (
+                <Image source={{ uri: book.coverUrl }} style={styles.compactCover} resizeMode="cover" />
+              ) : (
+                <View style={styles.compactCoverPlaceholder} />
+              )}
+              <View style={styles.compactTextBlock}>
+                <Text style={styles.compactTitleText} numberOfLines={1}>{book?.title}</Text>
+                {book?.author && <Text style={styles.compactAuthorText} numberOfLines={1}>{book.author}</Text>}
+              </View>
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.menuDots}>⋯</Text>
         </TouchableOpacity>
-      </View>
-
-      {/* Compact title overlay — sized independently of headerRow. Invisible
-          (opacity 0, pointerEvents none) until scrolled past the collapse
-          point, so it never affects the expanded/at-rest layout above. */}
-      <View style={[styles.compactTitleTouchable, { top: insets.top }]} pointerEvents={isCollapsed ? 'auto' : 'none'}>
-        <TouchableOpacity onPress={expandHeader} activeOpacity={0.7} style={styles.compactTitleTouchableInner}>
-          <Animated.View style={[styles.compactTitle, { opacity: compactTitleOpacity }]}>
-            {book?.coverUrl ? (
-              <Image source={{ uri: book.coverUrl }} style={styles.compactCover} resizeMode="cover" />
-            ) : (
-              <View style={styles.compactCoverPlaceholder} />
-            )}
-            <View style={styles.compactTextBlock}>
-              <Text style={styles.compactTitleText} numberOfLines={1}>{book?.title}</Text>
-              {book?.author && <Text style={styles.compactAuthorText} numberOfLines={1}>{book.author}</Text>}
-            </View>
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       {/* Collapsing hero — cover + full metadata, shrinks away as the list scrolls */}
       <Animated.View style={[styles.heroContainer, { height: heroHeight, opacity: heroOpacity }]}>
@@ -437,21 +454,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: PAPER,
-    position: 'relative',
   },
   // Slim and constant — sized only for the chevron/menu buttons, at rest or
   // collapsed. The compact title lives in its own overlay (below), sized
   // independently, so it never has to influence this row's height.
+  // height is set inline (animated, HEADER_REST_HEIGHT -> COMPACT_HEADER_HEIGHT).
+  // Always opaque + full width, so as it grows there's never a seam where a
+  // separately-sized element could leave scrolled content uncovered — see
+  // the comment by HEADER_REST_HEIGHT for why this replaced a two-element
+  // (fixed row + independently-sized overlay) approach.
   headerRow: {
-    height: 56,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    position: 'relative',
     // Sibling paint order in RN follows JSX order regardless of position,
     // and this is declared before the ScrollView — without an explicit
-    // zIndex + opaque background, scrolled session cards paint on top of
-    // (and show through) this row instead of staying underneath it.
+    // zIndex, scrolled session cards paint on top of (and show through)
+    // this row instead of staying underneath it.
     zIndex: 10,
     backgroundColor: PAPER,
   },
@@ -468,26 +489,18 @@ const styles = StyleSheet.create({
     color: NAVY,
     letterSpacing: 1,
   },
-  // Absolutely positioned so the compact title can start flush with the
-  // true left edge once the chevron hides, rather than being boxed in by
-  // the chevron's own layout space.
+  // Absolutely positioned (relative to headerRow, which is now the
+  // `position: relative` anchor) so the compact title can start flush with
+  // the true left edge once the chevron hides, rather than being boxed in
+  // by the chevron's own layout space. top:0/bottom:0 span whatever
+  // headerRow's current animated height is — safe now that headerRow
+  // itself grows to match, rather than this needing its own separate size.
   compactTitleTouchable: {
-    // top is set inline from useSafeAreaInsets() — a static value here would
-    // ignore the safe-area inset entirely, since absolutely-positioned
-    // children don't inherit SafeAreaView's inset the way normal-flow
-    // content does.
     position: 'absolute',
     left: 20,
     right: 44,
-    height: COMPACT_HEADER_HEIGHT,
-    // Same paint-order issue as headerRow: this is declared before the
-    // ScrollView in JSX, so without zIndex, scrolled session cards paint on
-    // top of the compact cover as they pass behind it. The opaque
-    // background that actually blocks that content lives on `compactTitle`
-    // below, NOT here — this outer container is never opacity-animated, so
-    // a background here would stay permanently visible even at rest,
-    // painting over both the chevron and the hero's title underneath it.
-    zIndex: 10,
+    top: 0,
+    bottom: 0,
   },
   compactTitleTouchableInner: {
     flex: 1,
@@ -504,7 +517,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: PAPER,
   },
   compactCover: {
     width: COMPACT_COVER_WIDTH,
