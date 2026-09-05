@@ -632,7 +632,11 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: HAIRLINE,
-    marginBottom: 8,
+    // 0 is intentional: COMPACT_HEADER_PADDING_BOTTOM (2) + this divider's
+    // own 1px height already sums to match COMPACT_HEADER_PADDING_TOP (3)
+    // exactly. Any marginBottom here would make the total gap below the
+    // cover bigger than the gap above it again.
+    marginBottom: 0,
   },
   noSessions: {
     fontSize: 15,
