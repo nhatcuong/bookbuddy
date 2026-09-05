@@ -479,11 +479,13 @@ const styles = StyleSheet.create({
     right: 44,
     height: COMPACT_HEADER_HEIGHT,
     // Same paint-order issue as headerRow: this is declared before the
-    // ScrollView in JSX, so without zIndex + an opaque background, scrolled
-    // session cards paint on top of (and through) the compact cover as they
-    // pass behind it.
+    // ScrollView in JSX, so without zIndex, scrolled session cards paint on
+    // top of the compact cover as they pass behind it. The opaque
+    // background that actually blocks that content lives on `compactTitle`
+    // below, NOT here — this outer container is never opacity-animated, so
+    // a background here would stay permanently visible even at rest,
+    // painting over both the chevron and the hero's title underneath it.
     zIndex: 10,
-    backgroundColor: PAPER,
   },
   compactTitleTouchableInner: {
     flex: 1,
@@ -493,6 +495,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: PAPER,
   },
   compactCover: {
     width: COMPACT_COVER_WIDTH,
