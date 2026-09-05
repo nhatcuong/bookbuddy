@@ -34,14 +34,16 @@ const COLLAPSE_RANGE = 130;
 
 // The fixed nav row's height is DERIVED from the compact cover's size, not
 // an independently-chosen number — it must always be exactly big enough to
-// vertically center the cover with COMPACT_HEADER_PADDING to spare on each
-// side. Picking these separately (as an earlier version of this file did)
-// lets the row height and cover size silently drift out of sync any time
-// either one changes.
+// fit the cover plus top/bottom padding. Picking these separately (as an
+// earlier version of this file did) lets the row height and cover size
+// silently drift out of sync any time either one changes. Top/bottom are
+// intentionally asymmetric (more room below than above).
 const COMPACT_COVER_WIDTH = 58;
 const COMPACT_COVER_HEIGHT = 84;
-const COMPACT_HEADER_PADDING = 3;
-const COMPACT_HEADER_HEIGHT = COMPACT_COVER_HEIGHT + COMPACT_HEADER_PADDING * 2;
+const COMPACT_HEADER_PADDING_TOP = 3;
+const COMPACT_HEADER_PADDING_BOTTOM = 6;
+const COMPACT_HEADER_HEIGHT =
+  COMPACT_COVER_HEIGHT + COMPACT_HEADER_PADDING_TOP + COMPACT_HEADER_PADDING_BOTTOM;
 
 export default function BookScreen({ navigation, route }: Props) {
   const { bookId, highlightSessionId } = route.params;
@@ -492,6 +494,13 @@ const styles = StyleSheet.create({
   },
   compactTitle: {
     flex: 1,
+    // paddingTop/paddingBottom reserve exactly COMPACT_COVER_HEIGHT of
+    // content area (by construction, since COMPACT_HEADER_HEIGHT is derived
+    // from these same three values) — alignItems then centers the cover
+    // and text within that content area relative to each other, while the
+    // asymmetric padding controls their position within the row as a whole.
+    paddingTop: COMPACT_HEADER_PADDING_TOP,
+    paddingBottom: COMPACT_HEADER_PADDING_BOTTOM,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
