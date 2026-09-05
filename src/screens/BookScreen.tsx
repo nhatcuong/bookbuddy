@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     // zIndex, scrolled session cards paint on top of (and show through)
     // this row instead of staying underneath it.
     zIndex: 10,
-    backgroundColor: 'red', // DEBUG: marks headerRow's true animated bounds
+    backgroundColor: PAPER,
   },
   navButton: {
     padding: 4,
@@ -522,7 +522,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'blue', // DEBUG: marks compactTitle's padded content box
   },
   compactCover: {
     width: COMPACT_COVER_WIDTH,
@@ -588,14 +587,21 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   heroContainer: {
+    // Horizontal padding is safe here (width isn't being animated to 0),
+    // but vertical spacing is intentionally NOT padding on this element:
+    // it animates to height:0 when collapsed, and padding on an explicit
+    // height:0 view isn't guaranteed to be absorbed rather than persisting
+    // as visible space. Moving it to bookHeader's margin instead means
+    // overflow:hidden here clips it unconditionally, regardless of that
+    // engine detail.
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
     overflow: 'hidden',
   },
   bookHeader: {
     flexDirection: 'row',
     gap: 16,
+    marginTop: 8,
+    marginBottom: 16,
   },
   cover: {
     width: 104,
