@@ -446,6 +446,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    // Sibling paint order in RN follows JSX order regardless of position,
+    // and this is declared before the ScrollView — without an explicit
+    // zIndex + opaque background, scrolled session cards paint on top of
+    // (and show through) this row instead of staying underneath it.
+    zIndex: 10,
+    backgroundColor: PAPER,
   },
   navButton: {
     padding: 4,
@@ -472,6 +478,12 @@ const styles = StyleSheet.create({
     left: 20,
     right: 44,
     height: COMPACT_HEADER_HEIGHT,
+    // Same paint-order issue as headerRow: this is declared before the
+    // ScrollView in JSX, so without zIndex + an opaque background, scrolled
+    // session cards paint on top of (and through) the compact cover as they
+    // pass behind it.
+    zIndex: 10,
+    backgroundColor: PAPER,
   },
   compactTitleTouchableInner: {
     flex: 1,
