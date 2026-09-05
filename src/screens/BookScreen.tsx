@@ -49,7 +49,7 @@ const HEADER_REST_HEIGHT = 56;
 const COMPACT_COVER_WIDTH = 58;
 const COMPACT_COVER_HEIGHT = 84;
 const COMPACT_HEADER_PADDING_TOP = 3;
-const COMPACT_HEADER_PADDING_BOTTOM = 6;
+const COMPACT_HEADER_PADDING_BOTTOM = 2;
 const COMPACT_HEADER_HEIGHT =
   COMPACT_COVER_HEIGHT + COMPACT_HEADER_PADDING_TOP + COMPACT_HEADER_PADDING_BOTTOM;
 
@@ -256,8 +256,12 @@ export default function BookScreen({ navigation, route }: Props) {
 
         {/* Compact title — invisible (opacity 0, pointerEvents none) until
             scrolled past the collapse point, so it never affects the
-            expanded/at-rest layout even though its box is always present. */}
-        <View style={styles.compactTitleTouchable} pointerEvents={isCollapsed ? 'auto' : 'none'}>
+            expanded/at-rest layout even though its box is always present.
+            height is driven by the SAME headerHeight Animated.Value as
+            headerRow itself (not inferred via bottom:0) — an animated
+            parent height doesn't reliably re-trigger Yoga's layout pass
+            for a child relying on implicit/inferred sizing. */}
+        <Animated.View style={[styles.compactTitleTouchable, { height: headerHeight }]} pointerEvents={isCollapsed ? 'auto' : 'none'}>
           <TouchableOpacity onPress={expandHeader} activeOpacity={0.7} style={styles.compactTitleTouchableInner}>
             <Animated.View style={[styles.compactTitle, { opacity: compactTitleOpacity }]}>
               {book?.coverUrl ? (
@@ -271,7 +275,7 @@ export default function BookScreen({ navigation, route }: Props) {
               </View>
             </Animated.View>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.menuDots}>⋯</Text>
@@ -474,7 +478,7 @@ const styles = StyleSheet.create({
     // zIndex, scrolled session cards paint on top of (and show through)
     // this row instead of staying underneath it.
     zIndex: 10,
-    backgroundColor: PAPER,
+    backgroundColor: 'red', // DEBUG: marks headerRow's true animated bounds
   },
   navButton: {
     padding: 4,
@@ -496,11 +500,12 @@ const styles = StyleSheet.create({
   // headerRow's current animated height is — safe now that headerRow
   // itself grows to match, rather than this needing its own separate size.
   compactTitleTouchable: {
+    // height is set inline from the same headerHeight Animated.Value as
+    // headerRow — see the comment at the JSX usage site for why.
     position: 'absolute',
     left: 20,
     right: 44,
     top: 0,
-    bottom: 0,
   },
   compactTitleTouchableInner: {
     flex: 1,
@@ -517,6 +522,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: 'blue', // DEBUG: marks compactTitle's padded content box
   },
   compactCover: {
     width: COMPACT_COVER_WIDTH,
