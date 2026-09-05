@@ -49,7 +49,7 @@ const HEADER_REST_HEIGHT = 56;
 const COMPACT_COVER_WIDTH = 58;
 const COMPACT_COVER_HEIGHT = 84;
 const COMPACT_HEADER_PADDING_TOP = 3;
-const COMPACT_HEADER_PADDING_BOTTOM = 2;
+const COMPACT_HEADER_PADDING_BOTTOM = 12;
 const COMPACT_HEADER_HEIGHT =
   COMPACT_COVER_HEIGHT + COMPACT_HEADER_PADDING_TOP + COMPACT_HEADER_PADDING_BOTTOM;
 
@@ -638,11 +638,13 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: HAIRLINE,
-    // 0 is intentional: COMPACT_HEADER_PADDING_BOTTOM (2) + this divider's
-    // own 1px height already sums to match COMPACT_HEADER_PADDING_TOP (3)
-    // exactly. Any marginBottom here would make the total gap below the
-    // cover bigger than the gap above it again.
-    marginBottom: 0,
+    // This same divider sits below the expanded hero AND below the
+    // collapsed compact header — it needs real breathing room for the
+    // former, which also adds a bit on top of the latter's already-tuned
+    // COMPACT_HEADER_PADDING_BOTTOM. That's an acceptable trade: the
+    // compact state has more room to spare than the expanded one has to
+    // lose it from.
+    marginBottom: 8,
   },
   noSessions: {
     fontSize: 15,
