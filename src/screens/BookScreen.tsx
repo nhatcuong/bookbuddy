@@ -248,11 +248,20 @@ export default function BookScreen({ navigation, route }: Props) {
           the two could have different widths/heights and leave a gap for
           scrolled content to show through. */}
       <Animated.View style={[styles.headerRow, { height: headerHeight }]}>
-        <Animated.View style={{ opacity: chevronOpacity }} pointerEvents={isCollapsed ? 'none' : 'auto'}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.backChevron}>‹</Text>
+        {/* Fixed-height wrapper so the buttons stay anchored to a stable
+            reference (HEADER_REST_HEIGHT) instead of being centered within
+            headerRow's own animated (changing) height, which would make
+            them drift up/down as the row grows/shrinks. */}
+        <View style={styles.headerButtonsRow}>
+          <Animated.View style={{ opacity: chevronOpacity }} pointerEvents={isCollapsed ? 'none' : 'auto'}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.backChevron}>‹</Text>
+            </TouchableOpacity>
+          </Animated.View>
+          <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.menuDots}>⋯</Text>
           </TouchableOpacity>
-        </Animated.View>
+        </View>
 
         {/* Compact title — invisible (opacity 0, pointerEvents none) until
             scrolled past the collapse point, so it never affects the
@@ -260,7 +269,10 @@ export default function BookScreen({ navigation, route }: Props) {
             height is driven by the SAME headerHeight Animated.Value as
             headerRow itself (not inferred via bottom:0) — an animated
             parent height doesn't reliably re-trigger Yoga's layout pass
-            for a child relying on implicit/inferred sizing. */}
+            for a child relying on implicit/inferred sizing. Its JSX
+            position among headerRow's children doesn't matter — it's
+            position:absolute, so it doesn't participate in headerRow's
+            own layout flow. */}
         <Animated.View style={[styles.compactTitleTouchable, { height: headerHeight }]} pointerEvents={isCollapsed ? 'auto' : 'none'}>
           <TouchableOpacity onPress={expandHeader} activeOpacity={0.7} style={styles.compactTitleTouchableInner}>
             <Animated.View style={[styles.compactTitle, { opacity: compactTitleOpacity }]}>
@@ -276,10 +288,6 @@ export default function BookScreen({ navigation, route }: Props) {
             </Animated.View>
           </TouchableOpacity>
         </Animated.View>
-
-        <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.navButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.menuDots}>⋯</Text>
-        </TouchableOpacity>
       </Animated.View>
 
       {/* Collapsing hero — cover + full metadata, shrinks away as the list scrolls */}
@@ -469,9 +477,12 @@ const styles = StyleSheet.create({
   // (fixed row + independently-sized overlay) approach.
   headerRow: {
     paddingHorizontal: 16,
+    // flex-start, not center: headerButtonsRow below has its own fixed
+    // height and anchors to headerRow's stable top edge. Centering it
+    // within headerRow's own animated (changing) height would make it
+    // drift up/down as the row grows/shrinks, taking the buttons with it.
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     position: 'relative',
     // Sibling paint order in RN follows JSX order regardless of position,
     // and this is declared before the ScrollView — without an explicit
@@ -479,6 +490,15 @@ const styles = StyleSheet.create({
     // this row instead of staying underneath it.
     zIndex: 10,
     backgroundColor: PAPER,
+  },
+  // Fixed height (never animated) so the chevron/menu buttons keep a
+  // constant vertical position regardless of headerRow's current height.
+  headerButtonsRow: {
+    height: HEADER_REST_HEIGHT,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   navButton: {
     padding: 4,
