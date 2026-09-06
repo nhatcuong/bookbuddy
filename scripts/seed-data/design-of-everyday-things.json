@@ -1,0 +1,242 @@
+{
+  "version": 2,
+  "book": {
+    "title": "The Design of Everyday Things",
+    "author": "Don Norman",
+    "coverUrl": "https://books.google.com/books/content?id=I1o4DgAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api",
+    "isbn": "9780465072996",
+    "googleBooksId": "I1o4DgAAQBAJ",
+    "description": "One of the world's great designers shares his vision of \"the fundamental principles of great and meaningful design\", that's \"even more relevant today than it was when first published\" (Tim Brown, CEO, IDEO). Even the smartest among us can feel inept as we fail to figure out which light switch or oven burner to turn on, or whether to push, pull, or slide a door. The fault, argues this ingenious -- even liberating -- book, lies not in ourselves, but in product design that ignores the needs of users and the principles of cognitive psychology. The problems range from ambiguous and hidden controls to arbitrary relationships between controls and functions, coupled with a lack of feedback or other assistance and unreasonable demands on memorization. The Design of Everyday Things shows that good, usable design is possible. The rules are simple: make things visible, exploit natural relationships that couple function and control, and make intelligent use of constraints. The goal: guide the user effortlessly to the right action on the right control at the right time. The Design of Everyday Things is a powerful primer on how -- and why -- some products satisfy customers while others only frustrate them.",
+    "pageCount": 415
+  },
+  "sessions": [
+    {
+      "note": [
+        {
+          "type": "quote",
+          "text": "Which things should be paid attention to, which should be ignored? Industry faces this problem all the time, as do governments. The intelligence communities are swamped with data — how do they decide which cases are serious?",
+          "location": "page 237"
+        },
+        {
+          "type": "thought",
+          "text": "The author appears to think of design as something deeply important for decision-making in a complex context. This problem is very prevalent and dominant today in the promises of AI. AI will consume a lot of information, but to distinguish which one is serious, which one is crucial, and which one is not is very difficult, given that everything is just words to LLMs. It's interesting and surprising that the author even mentioned artificial intelligence here."
+        },
+        {
+          "type": "quote",
+          "text": "A more powerful approach is to develop intelligent computer systems, using good search and appropriate reasoning techniques — artificial intelligence — decision-making and problem-solving. The difficulties here are in establishing the interaction of the people with automation. Human teams and automated systems have to be thought of as collaborative, cooperative systems.",
+          "location": null
+        },
+        {
+          "type": "quote",
+          "text": "This usually means that machines do the parts that are easy for people, but when the problems become complex — which is precisely when people could use assistance — that is when the machines usually fail.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "He tries to foresee the future a bit, but it's not very accurate now. He discusses this in the context of \"the design of future things.\" This is super interesting because AI has advanced a lot compared to when the book was published. Artificial intelligence actually helps me in a lot of complex contexts — it helps me to better understand, better dive in, better gather touch points, etc. Still, it is very bad at making decisions. Maybe it's worth it to skim \"The Design of Future Things.\""
+        }
+      ],
+      "chapter": "chapter 5",
+      "rawTranscript": "Quote page 237 quote which things should be paid attention to which should be ignored industry faces this problem all the time as do governments the intelligence communities are swamped with data how do they decide which cases are serious end quote so in this chapter I think five the author appears to think of design as something deeply important for the aspect of decision making in a complex in the complex context the problem itself today is very prevalent very dominant in the promises of AI so AI will consume a lot of information but to distinguish each one which one is serious which one is crucial which one is not it's very very difficult given that everything is just words to AI now to LLM so so that's interesting and and I got surprised that the author even mentioned artificial intelligence here so he said quote a more powerful approach is to develop intelligent computer systems using good search and appropriate reasoning techniques artificial intelligence decision-making and problem-solving the difficulties here are in establishing the interaction of the people with automation human teams and automated systems have to be thought of as collaborative cooperative systems end quote and apparently so he tries to foresee the future a bit I think it's it's not as accurate it's not very accurate now he say that quote this usually means that machines do the part that are easy for people but when the problems become complex which is precisely when people could use assistance that is when the machines usually fail end quote and he say that he discusses this thing about the design of future things this is interesting because this is super super interesting so now AI has advanced a lot compared to I guess when the book was published artificial intelligence actually helps me in a lot of complex context right so it helps me to better understand to better dive in to better like gather touch points etc still it is very bad in making decisions yeah so maybe it's worth it to scheme the design future things",
+      "sessionDate": "2026-09-05 09:21:45"
+    },
+    {
+      "note": [
+        {
+          "type": "quote",
+          "text": "Whoever invented that mirror image nonsense should be forced to take a shower.",
+          "location": "page 201"
+        },
+        {
+          "type": "thought",
+          "text": "That's funny.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "This part is in a chapter that has a whole section about faucets — the challenges and inventions around faucet design.",
+          "location": null
+        },
+        {
+          "type": "quote",
+          "text": "Alas, sometimes clever people are too clever for our good. Some well-meaning plumbing designers have decided that consistency should be ignored in favor of their own private brand of psychology. The human body has mirror image symmetry, say these pseudo-psychologists. So if the left hand moves clockwise, why the right hand should move counterclockwise.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "I've actually seen these faucets — it's very interesting but guaranteed to fail.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "I'm at the part of the book with lots of anecdotes, one after another. It's interesting to skim and funny sometimes, but not sure it's very useful to me anymore.",
+          "location": null
+        }
+      ],
+      "chapter": null,
+      "rawTranscript": "Page 201, whoever invented that mirror image nonsense should be forced to take a shower. End quote. That's funny.",
+      "sessionDate": "2026-09-04 08:04:20"
+    },
+    {
+      "note": [
+        {
+          "type": "thought",
+          "text": "The author listed down the seven stages of action. It's a bit of a repeat from the beginning of the chapter, but it's quite useful. There are seven stages of action and seven fundamental design principles. It's nice to see that we capture the seven actions as seven questions that people ask themselves when performing actions.",
+          "location": null
+        },
+        {
+          "type": "quote",
+          "text": "1. What do I want to accomplish? 2. What are the alternative action sequences? 3. What action can I do now? 4. How do I do it? 5. What happened? 6. What does it mean? 7. Is it okay? Have I accomplished my goal?",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "These are the seven questions that people ask themselves when they walk through a course of action. Together with them, there are seven fundamental design principles. The trap here is that I find it a bit misleading because the seven principles do not map to the seven stages of action. They are orthogonal to them. It's a bit misleading in terms of conceptual model — it's not a good mapping, if I use the terms of the very author themselves.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "The seven principles are: discoverability, feedback, conceptual model, affordances, signifiers, mappings, and constraints.",
+          "location": null
+        }
+      ],
+      "chapter": "chapter 2",
+      "rawTranscript": "Chapter 2, ending with some good dance information, the author listed down the seven stages of action. It's a bit of a repeat from the beginning of the chapter, but it's quite useful. So there are seven stages of action and seven fundamental design principles. It's nice to see that we capture the seven actions, like the seven questions that people ask themselves when performing actions. What do I want to accomplish? Second, what are the alternative action sequences? Third, what action can I do now? Fourth, how do I do it? Fifth, what happened? Sixth, what does it mean? And seventh, is it okay? Have I accomplished my goal? So these are the seven questions that people ask themselves when they walk through a course of action. Together with it, there are seven fundamental aspects, like design principles. The trap here is that, and I find this a bit misleading because the seven principles do not map to the seven stages of action. So they are kind of like horizontal, right, orthogonal to that. So it's a bit misleading in terms of conceptual model. It's not a good mapping, if I use the terms of the very author themselves. So the seven principles are discoverability, feedback, conceptual model, affordances, signifiers, mappings, and constraints. So here we end chapter two.",
+      "sessionDate": "2026-08-26 08:28:30"
+    },
+    {
+      "note": [
+        {
+          "type": "quote",
+          "text": "Conceptual models are a form of story resulting from our predisposition to find explanations. These models are essential in helping us understand our experiences, predict the outcome of actions, and handle unexpected occurrences. We base our models on whatever knowledge we have, real or imaginary, naive or sophisticated.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "This is interesting because I care about storytelling and I care about conceptual models, but this is the first time I've heard someone say that conceptual models, like mental models, are a kind of storytelling — connecting the power of concepts and the power of storytelling.",
+          "location": null
+        }
+      ],
+      "chapter": null,
+      "rawTranscript": "So, the next information dance point is about when the author says something that I did not think about. It's interesting that he said that, quote, conceptual models are a form of story resulting from our predisposition to find explanations. These models are essential in helping us understand our experiences, predict the outcome of actions, and handle unexpected occurrences. We base our models on whatever knowledge we have, real or imaginary, naive or sophisticated, end quote. This is interesting because I care about storytelling and I care about conceptual models, but this is the first time that I heard someone saying that conceptual models, like mental models, are a kind of storytelling that connects the power of concepts and the power of storytelling. End quote.",
+      "sessionDate": "2026-08-23 12:17:51"
+    },
+    {
+      "note": [
+        {
+          "type": "thought",
+          "text": "This section is about the three layers of processing that people have. The first is visceral — it's immediate, like a reflex when people do things. The second is behavioral — when we do certain tasks repeatedly, they become behavioral. The third is reflective — people reflect, think about things, and decide whether they like something or not.",
+          "location": "Chapter 2"
+        },
+        {
+          "type": "thought",
+          "text": "Usually when we plan, it is reflective; when we specify, it is behavioral; and when we perform, it is mostly visceral.",
+          "location": "Chapter 2"
+        },
+        {
+          "type": "thought",
+          "text": "In the scope that I work in though — ads, experimentation — I think most of the time people operate at the reflective layer.",
+          "location": "Chapter 2"
+        }
+      ],
+      "chapter": "chapter 3",
+      "rawTranscript": "At the next dance information point is about the three layers of processing that people have. So the first is visceral, like reflective, about something, by reflective I mean like it's like immediate reflex when people do things. And then there is behavioral, when we do things, we do things a lot of times, like certain tasks become behavioral, right? And then there's reflective, like people reflect about things, people think about and people decide if they like it or not. So there are three layers of processing. So usually when we do planning it is reflective, when we do behavioral it is to specify, and when we perform it is mostly visceral. In the scope that I work in though, like arts, experimentation, I think most of the things people behave, like people operate at reflective layer.",
+      "sessionDate": "2026-08-23 12:15:52"
+    },
+    {
+      "note": [
+        {
+          "type": "thought",
+          "text": "The book takes a lot of sidetracks, which makes the information not very dense. Most of the sidetracks I don't like that much. There is one sidetrack that is interesting though — when the author talks about how positive and negative emotional states affect how people operate.",
+          "location": null
+        },
+        {
+          "type": "quote",
+          "text": "A positive emotional state is ideal for creative thought, but it is not very well suited for getting things done. Too much, and we call the person scatterbrained, flitting from one topic to another, unable to finish one thought before another comes to mind. A brain in a negative emotional state provides focus, precisely what is needed to maintain attention on a task and finish it. Too much, however, and we get tunnel vision, when people are unable to look beyond their narrow point of view. Both the positive, relaxed state and the anxious, negative, intense state are valuable and powerful tools for human creativity and action. The extremes of both states, however, can be dangerous.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "I never thought of it this way. When you are positive, happy, and optimistic, you are more creative — but execution needs a certain dose of stress and anxiety. This is a good balance to look at. An interesting sidetrack, but I still don't like when books go off track too much and the information gets less dense.",
+          "location": null
+        }
+      ],
+      "chapter": null,
+      "rawTranscript": "But the book also takes a lot of, let's say, sidetracks, which makes the information not very dense in this book. So most of the sidetracks, I don't like it that much. There is one sidetrack that is interesting though, that is when the author talks about how positive and how negative people are, can behave, can have in their mind, and which can answer how do they operate. So a positive emotional state is ideal for creative thought, but it is not very well suited for getting things done. Too much, and we call the person scatterbrained, feeding from one topic to another, unable to finish one thought before another comes to mind. A brain in a negative emotional state provides focus, precisely what is needed to maintain attention on a task and finish it. Too much, however, and we get too tunnel vision, when people are unable to look beyond their narrow point of view. Both the positive, relaxed state and the anxious, negative, intense state are valuable and powerful tools for human creativity and action. The extremes of both states, however, can be dangerous and awkward. I never thought of it this way. So when you are positive, when you are happy and optimistic, then you are more creative, but then execution needs a certain dose of stress and anxiety. This is a good balance to look at. So this is a good, an interesting sidetrack. I still don't like when books go sidetracked too much and with information getting less dense.",
+      "sessionDate": "2026-08-23 12:13:09"
+    },
+    {
+      "note": [
+        {
+          "type": "thought",
+          "text": "Chapter 2 is about the psychology of everyday things. It introduces some interesting concepts.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "First, there is the gulf of execution: What can I do? What should I do now? How do I do it? That's the gulf of execution.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "Then there is the gulf of evaluation, which is about feedback: What have I done? Was it good? What do I expect now?",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "Good design should help people overcome these gulfs.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "The book then breaks down the gulfs further into the seven stages of action: setting up the goal, then plan, specify, perform, perceive, interpret, and compare. That's how people interact with the world.",
+          "location": null
+        },
+        {
+          "type": "thought",
+          "text": "So far the book is mostly interesting up to this point.",
+          "location": null
+        }
+      ],
+      "chapter": "chapter 2",
+      "rawTranscript": "So chapter 2 is about the psychology of everyday things. It started with some interesting concepts. First it says that when people do things, there is a gulf of execution. What can I do? What should I do now? How do I do it? That's the gulf of execution. And then there is a gulf of evaluation about feedback. What have I done? Was it good? What do I expect now? So that's the gulf of execution and the gulf of evaluation. And good design should help people to overcome these gulfs. So then the book breaks down further the gulfs into the seven stages of actions, into setting up the goal, and then plan, and then specify, and then perform, and then perceive, and then interpret, and then compare. And that's how people interact in the world. And so far the book is, until this space, until this part, the book is mostly interesting.",
+      "sessionDate": "2026-08-23 12:10:41"
+    },
+    {
+      "note": [
+        {
+          "type": "thought",
+          "text": "Another interesting concept is what the author calls conceptual models, or more generally what people call mental models. Usually mental models can be conveyed through the design but can also live in people's heads, and the designers and the end users usually have different conceptual models, different mental models. For the design to convey a good, accurate, useful conceptual model to the end user is crucial — it's one of the key goals of having good design.",
+          "location": null
+        }
+      ],
+      "chapter": "chapter 1",
+      "rawTranscript": "Another interesting concept in chapter one is what the author calls the conceptual models or more generally what people call like their mental models. Usually mental models can be conveyed through the through the design but can also live in in people's head and the designers and the end users usually have different conceptual models, different mental models, right? And for the design to convey a good, accurate, useful conceptual models to the end user is something that is very, that is crucial, that is kind of like it's one of the key goal of having good design.",
+      "sessionDate": "2026-08-14 13:25:40"
+    },
+    {
+      "note": [
+        {
+          "type": "thought",
+          "text": "It's useful in the sense that it crystallizes the thoughts that at some point I already had about why I build products. The concepts like affordances and signifiers are kind of intuitive, but they're new terminology. I'm interested in seeing how learning and using these concepts will help me better think about products and the things we use.",
+          "location": null
+        }
+      ],
+      "chapter": "chapter 1",
+      "rawTranscript": "I finished chapter one of the book and I think it's useful in the sense that it crystallizes in some way, in a good way, the thoughts that at some point we already had, I already had, why I build products, right? For example, when it says about... So like the concepts that you don't know, affordances and signifiers, right? So they are kind of intuitive concepts, but it's new. So I'm interested in seeing how will it help to further, to learn, to use the concepts, to better think about products and the things we use.",
+      "sessionDate": "2026-08-14 13:23:42"
+    },
+    {
+      "note": [
+        {
+          "type": "thought",
+          "text": "Just started reading this book. It seems very interesting and I wonder if I can use it in my work at the experimentation.",
+          "location": null
+        }
+      ],
+      "chapter": null,
+      "rawTranscript": "I started reading the design of everyday things, it seems very interesting and I wonder if I can use it in my work at the experimentation.",
+      "sessionDate": "2026-08-10 16:38:31"
+    }
+  ]
+}
