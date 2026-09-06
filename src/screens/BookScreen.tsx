@@ -288,6 +288,11 @@ export default function BookScreen({ navigation, route }: Props) {
             </Animated.View>
           </TouchableOpacity>
         </Animated.View>
+
+        {/* Full-width bottom border, fading in with the same crossfade as
+            the compact title — gives the collapsed header some physical
+            separation from the scrolling content, invisible at rest. */}
+        <Animated.View style={[styles.headerBottomDivider, { opacity: compactTitleOpacity }]} pointerEvents="none" />
       </Animated.View>
 
       {/* Collapsing hero — cover + full metadata, shrinks away as the list scrolls */}
@@ -499,6 +504,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  // Edge-to-edge, unlike the in-content `divider` (which is inset by the
+  // scroll content's own horizontal padding) — this one spans headerRow's
+  // full width since it's meant to read as the row's own bottom border.
+  headerBottomDivider: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 1,
+    backgroundColor: HAIRLINE,
   },
   navButton: {
     padding: 4,
