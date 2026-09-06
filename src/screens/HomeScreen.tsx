@@ -22,15 +22,44 @@ import { NAVY, ACCENT, MUTED, FAINT, PAPER, SURFACE, HAIRLINE, CARD_SHADOW } fro
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
+// Cover container is a fixed 1:1.5 box (the most common book-cover ratio).
+// Covers are scaled to fit inside it without cropping — since RN's
+// resizeMode:'contain' always centers its content within the Image
+// element's own box (no way to anchor it left directly), getting a real
+// left-aligned/vertically-centered result means computing each cover's
+// actual displayed size from its natural dimensions, then sizing the Image
+// element to match exactly — so there's no internal letterboxing left for
+// resizeMode to center on its own.
+const COVER_CONTAINER_WIDTH = 52;
+const COVER_CONTAINER_HEIGHT = COVER_CONTAINER_WIDTH * 1.5;
+
 export default function HomeScreen({ navigation }: Props) {
   const [books, setBooks] = useState<BookRow[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [coverSizes, setCoverSizes] = useState<Record<number, { width: number; height: number }>>({});
 
   function loadBooks() {
     setBooks(getBooksByLastSession());
   }
 
   useFocusEffect(useCallback(() => { loadBooks(); }, []));
+
+  useEffect(() => {
+    books.forEach(book => {
+      if (!book.coverUrl || coverSizes[book.id]) return;
+      Image.getSize(
+        book.coverUrl,
+        (width, height) => setCoverSizes(prev => ({ ...prev, [book.id]: { width, height } })),
+        () => {}
+      );
+    });
+    // Deliberately depends on `books` only, not `coverSizes` — books already
+    // changes on every screen focus (loadBooks), which is enough to pick up
+    // anything newly missing. Depending on coverSizes too would re-run this
+    // effect as each fetch resolves, re-firing Image.getSize for any other
+    // covers still in flight at that moment (guard only skips ones already
+    // resolved, not ones merely requested).
+  }, [books]);
 
   const { state, durationMs, start, stop, cleanup } = useRecording(({ bookId, sessionId }) => {
     loadBooks();
@@ -88,29 +117,41 @@ export default function HomeScreen({ navigation }: Props) {
           data={books}
           keyExtractor={b => b.id.toString()}
           contentContainerStyle={styles.list}
-          renderItem={({ item, index }) => (
-            <TouchableOpacity
-              style={[styles.bookCard, index === 0 && styles.bookCardActive]}
-              onPress={() => navigation.navigate('Book', { bookId: item.id })}
-              activeOpacity={0.75}
-            >
-              {item.coverUrl ? (
-                <Image source={{ uri: item.coverUrl }} style={styles.cover} resizeMode="cover" />
-              ) : (
-                <View style={styles.coverPlaceholder} />
-              )}
-              <View style={styles.bookInfo}>
-                <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
-                {item.author && <Text style={styles.bookAuthor}>{item.author}</Text>}
-                {item.lastSessionAt && (
-                  <View style={styles.dateRow}>
-                    {index === 0 && <View style={styles.activeDot} />}
-                    <Text style={styles.bookDate}>Last note {formatDate(item.lastSessionAt)}</Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
+          renderItem={({ item, index }) => {
+            const natural = item.coverUrl ? coverSizes[item.id] : null;
+            const coverDisplaySize = natural
+              ? {
+                  width: natural.width * Math.min(COVER_CONTAINER_WIDTH / natural.width, COVER_CONTAINER_HEIGHT / natural.height),
+                  height: natural.height * Math.min(COVER_CONTAINER_WIDTH / natural.width, COVER_CONTAINER_HEIGHT / natural.height),
+                }
+              : { width: COVER_CONTAINER_WIDTH, height: COVER_CONTAINER_HEIGHT };
+
+            return (
+              <TouchableOpacity
+                style={[styles.bookCard, index === 0 && styles.bookCardActive]}
+                onPress={() => navigation.navigate('Book', { bookId: item.id })}
+                activeOpacity={0.75}
+              >
+                <View style={styles.coverContainer}>
+                  {item.coverUrl ? (
+                    <Image source={{ uri: item.coverUrl }} style={coverDisplaySize} resizeMode="contain" />
+                  ) : (
+                    <View style={styles.coverPlaceholder} />
+                  )}
+                </View>
+                <View style={styles.bookInfo}>
+                  <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
+                  {item.author && <Text style={styles.bookAuthor}>{item.author}</Text>}
+                  {item.lastSessionAt && (
+                    <View style={styles.dateRow}>
+                      {index === 0 && <View style={styles.activeDot} />}
+                      <Text style={styles.bookDate}>Last note {formatDate(item.lastSessionAt)}</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
 
@@ -196,6 +237,10 @@ const styles = StyleSheet.create({
   },
   bookCard: {
     flexDirection: 'row',
+    // Without this, the cover (fixed-height, doesn't stretch) sits at the
+    // top of the row whenever bookInfo's content (e.g. a 2-line title) is
+    // taller than the cover container — leaving empty space below it.
+    alignItems: 'center',
     backgroundColor: SURFACE,
     borderRadius: 14,
     overflow: 'hidden',
@@ -207,13 +252,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 16,
   },
-  cover: {
-    width: 52,
-    height: 76,
+  // Fixed 1:1.5 box; the Image inside is sized dynamically per-cover (see
+  // coverDisplaySize in renderItem) to its actual scaled dimensions, so
+  // justifyContent/alignItems here position the real visible content
+  // directly — not just the image element's own (otherwise full-box) frame.
+  coverContainer: {
+    width: COVER_CONTAINER_WIDTH,
+    height: COVER_CONTAINER_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   coverPlaceholder: {
-    width: 52,
-    height: 76,
+    width: '100%',
+    height: '100%',
     backgroundColor: '#C8BFAF',
   },
   bookInfo: {
