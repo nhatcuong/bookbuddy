@@ -109,8 +109,11 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Book list */}
       {books.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No books yet</Text>
-          <Text style={styles.emptySubtitle}>Tap below to record your first note</Text>
+          <Text style={styles.emptyTitle}>What are you reading?</Text>
+          <View style={styles.emptyDivider} />
+          <Text style={styles.emptySubtitle}>
+            Say the book, the chapter, and what's on your mind, like you're talking to a friend!
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -306,16 +309,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingBottom: 100,
-    gap: 8,
+    paddingHorizontal: 64,
   },
   emptyTitle: {
     fontFamily: 'Newsreader_500Medium',
-    fontSize: 20,
+    fontSize: 22,
     color: NAVY,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  emptyDivider: {
+    width: 56,
+    height: 1,
+    backgroundColor: 'rgba(27,42,74,0.3)',
+    marginBottom: 20,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 19,
     color: MUTED,
+    textAlign: 'center',
+    lineHeight: 26,
   },
   fabContainer: {
     position: 'absolute',
