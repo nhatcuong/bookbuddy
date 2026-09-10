@@ -470,24 +470,6 @@ export default function BookScreen({ navigation, route }: Props) {
         />
       )}
 
-      {/* FAB */}
-      <View style={styles.fabContainer}>
-        <Fab
-          fabState={
-            wrongBookCapture.state === 'recording'    ? 'recording'  :
-            wrongBookCapture.state === 'transcribing' ? 'processing' :
-            amendCapture.state === 'recording'        ? 'recording'  :
-            amendCapture.state === 'transcribing'     ? 'processing' :
-            isRecording ? 'recording' : isProcessing  ? 'processing' : 'idle'
-          }
-          onPress={
-            wrongBookCapture.state === 'recording' ? wrongBookCapture.stop :
-            amendCapture.state === 'recording'     ? amendCapture.stop     :
-            isRecording ? stop : start
-          }
-        />
-      </View>
-
       {/* Menu */}
       {menuOpen && (
         <View style={[StyleSheet.absoluteFillObject, { zIndex: 999 }]}>
@@ -504,6 +486,29 @@ export default function BookScreen({ navigation, route }: Props) {
         </View>
       )}
     </View>
+
+      {/* FAB — deliberately a direct child of SafeAreaView, not of
+          `content`: `content`'s box excludes the bottom safe-area inset
+          (needed so heroOverlay gets the top inset), which would push the
+          FAB up by that inset's height too. Home screen's FAB sits at the
+          same true distance from the bottom edge, so this keeps both
+          screens visually consistent. */}
+      <View style={styles.fabContainer}>
+        <Fab
+          fabState={
+            wrongBookCapture.state === 'recording'    ? 'recording'  :
+            wrongBookCapture.state === 'transcribing' ? 'processing' :
+            amendCapture.state === 'recording'        ? 'recording'  :
+            amendCapture.state === 'transcribing'     ? 'processing' :
+            isRecording ? 'recording' : isProcessing  ? 'processing' : 'idle'
+          }
+          onPress={
+            wrongBookCapture.state === 'recording' ? wrongBookCapture.stop :
+            amendCapture.state === 'recording'     ? amendCapture.stop     :
+            isRecording ? stop : start
+          }
+        />
+      </View>
     </SafeAreaView>
   );
 }
